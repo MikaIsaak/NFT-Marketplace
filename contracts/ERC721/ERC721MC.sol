@@ -28,6 +28,7 @@ contract ERC721MC is
     function safeMint(address to, string calldata uri) public onlyOwner {
         _mint(to, _nextTokenId++);
         _setTokenURI(_nextTokenId++, uri);
+        _nextTokenId++;
     }
 
     // The following functions are overrides required by Solidity.
