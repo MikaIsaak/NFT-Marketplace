@@ -1,14 +1,15 @@
 import { ethers } from "hardhat";
-import { MarkShagal } from "../typechain-types";
-
+import { MyNFTContract, Marketplace } from "../typechain-types";
 async function main() {
   const [ owner ] = await ethers.getSigners();
 
-  const Factory = await ethers.getContractFactory("MarkShagal");
-  const MarkShagal = await Factory.deploy(owner.address);
-  await MarkShagal.deployed();
+  const nftFactory = await ethers.getContractFactory("MyNFTContract");
+  const nft = await nftFactory.deploy();
+  nft.deployed();
 
-  console.log("We deployed contract " + MarkShagal.address + " and owner is " + owner.address);
+  const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
+  const marketplace = await MarketplaceFactory.deploy();
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

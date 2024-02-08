@@ -12,7 +12,6 @@ contract Marketplace is ReentrancyGuard {
     address payable private immutable feeAccount;
     uint8 public immutable feePercent;
     uint248 private itemCount;
-    IERC20 public immutable USDT;
     IERC20 public immutable USDC;
     mapping(uint => Item) public items;
 
@@ -49,7 +48,7 @@ contract Marketplace is ReentrancyGuard {
         _;
     }
 
-    constructor(uint8 _feePercent, address addr, address _USDT, address _USDC) {
+    constructor(uint8 _feePercent, address addr, address _USDC) {
         require(
             _feePercent < 100,
             "It's unsual big comission, please, change it"
@@ -58,7 +57,6 @@ contract Marketplace is ReentrancyGuard {
         feeAccount = payable(msg.sender);
         feePercent = _feePercent;
         nft = MyNFTContract(addr);
-        USDT = IERC20(_USDT);
         USDC = IERC20(_USDC);
     }
 
@@ -80,7 +78,7 @@ contract Marketplace is ReentrancyGuard {
             "You havent approved NFT for this contract"
         );
         require(
-            _token == USDC || _token == USDT,
+            _token == USDC,
             "We dont accept this token for a payment"
         );
 
@@ -103,7 +101,7 @@ contract Marketplace is ReentrancyGuard {
         require(item.onSale, "Item isn't on sale");
         require(msg.sender != item.seller, "You can't buy NFT from yourself");
         require(
-            _token == USDC || _token == USDT,
+            _token == USDC,
             "We don't accept this token for a payment"
         );
 

@@ -16,11 +16,11 @@ describe("Marketplace", function() {
       await nft.deployed();
 
       const UsdcFactory = await ethers.getContractFactory("USDC");
-      const USDC = await UsdcFactory.deploy();
+      const USDC = await UsdcFactory.deploy(100000);
       await USDC.deployed();
 
       const UsdtFactory = await ethers.getContractFactory("USDT");
-      const USDT = await UsdtFactory.deploy();
+      const USDT = await UsdtFactory.deploy(1000000);
       await USDT.deployed();
 
       const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
