@@ -10,6 +10,7 @@ contract Marketplace is ReentrancyGuard {
     MyNFTContract nft;
     address payable private immutable feeAccount;
     uint8 public immutable feePercent;
+    uint i;
     uint248 private itemCount;
     IERC20 public immutable USDT;
     IERC20 public immutable USDC;
