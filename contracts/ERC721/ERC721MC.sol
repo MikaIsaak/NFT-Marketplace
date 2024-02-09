@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import  {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
@@ -26,9 +26,9 @@ contract ERC721MC is
     }
 
     function safeMint(address to, string calldata uri) public onlyOwner {
-        _mint(to, _nextTokenId++);
-        _setTokenURI(_nextTokenId++, uri);
         _nextTokenId++;
+        _mint(to, _nextTokenId);
+        _setTokenURI(_nextTokenId, uri);
     }
 
     // The following functions are overrides required by Solidity.

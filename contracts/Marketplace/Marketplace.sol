@@ -3,7 +3,7 @@ pragma solidity 0.8.20;
 
 import {MyNFTContract} from "../ERC721/TempNFT.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
@@ -12,7 +12,7 @@ contract Marketplace is ReentrancyGuard {
     address payable private immutable feeAccount;
     uint8 public immutable feePercent;
     uint248 private itemCount;
-    IERC20 public immutable USDC;
+    ERC20 public immutable USDC;
     mapping(uint => Item) public items;
 
     struct Item {
@@ -44,7 +44,10 @@ contract Marketplace is ReentrancyGuard {
     error UnsuccessfullySendFunds();
 
     modifier onlyNftOwner(address ownerAddress, uint256 _tokenId) {
-        require(nft.ownerOf(_tokenId) == ownerAddress, "You aren't owner of the token");
+        require(
+            nft.ownerOf(_tokenId) == ownerAddress,
+            "You aren't owner of the token"
+        );
         _;
     }
 
@@ -57,7 +60,7 @@ contract Marketplace is ReentrancyGuard {
         feeAccount = payable(msg.sender);
         feePercent = _feePercent;
         nft = MyNFTContract(addr);
-        USDC = IERC20(_USDC);
+        USDC = ERC20(_USDC);
     }
 
     receive() external payable {}
@@ -69,7 +72,7 @@ contract Marketplace is ReentrancyGuard {
     function listItem(
         uint256 _tokenId,
         uint256 _price,
-        IERC20 _token
+        ERC20 _token
     ) external onlyNftOwner(msg.sender, _tokenId) {
         require(_price > 0, "Price must be greater than zero");
         require(
@@ -77,10 +80,7 @@ contract Marketplace is ReentrancyGuard {
                 nft.isApprovedForAll(msg.sender, address(this)),
             "You havent approved NFT for this contract"
         );
-        require(
-            _token == USDC,
-            "We dont accept this token for a payment"
-        );
+        require(_token == USDC, "We dont accept this token for a payment");
 
         itemCount++;
         items[itemCount] = Item(
@@ -95,15 +95,12 @@ contract Marketplace is ReentrancyGuard {
         emit Offered(itemCount, address(nft), _tokenId, _price, msg.sender);
     }
 
-    function purchaseItem(uint256 _itemId, IERC20 _token) external payable {
+    function purchaseItem(uint256 _itemId, ERC20 _token) external {
         Item storage item = items[_itemId];
         require(_itemId > 0 && _itemId <= itemCount, "Item doesn't exist");
         require(item.onSale, "Item isn't on sale");
         require(msg.sender != item.seller, "You can't buy NFT from yourself");
-        require(
-            _token == USDC,
-            "We don't accept this token for a payment"
-        );
+        require(_token == USDC, "We don't accept this token for a payment");
 
         uint _totalPrice = getTotalPrice(_itemId);
         require(
@@ -146,12 +143,16 @@ contract Marketplace is ReentrancyGuard {
         items[_itemId].onSale = false;
     }
 
-    function _transferNFT(address _from, address _to, uint256 _tokenId) internal {
+    function _transferNFT(
+        address _from,
+        address _to,
+        uint256 _tokenId
+    ) internal {
         nft.transferFrom(_from, _to, _tokenId);
     }
 
     function _transferFunds(
-        IERC20 _token,
+        ERC20 _token,
         address _buyer,
         address _fee,
         address _seller,

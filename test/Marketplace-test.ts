@@ -24,7 +24,7 @@ describe("Marketplace", function() {
       await USDT.deployed();
 
       const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-      const marketplace = await MarketplaceFactory.deploy(10,nft.address,USDT.address, USDC.address);
+      const marketplace = await MarketplaceFactory.deploy(10,nft.address, USDC.address);
       await marketplace.deployed();
 
       const usdtTransfer = await USDT.transfer(user.address,1000);
@@ -279,20 +279,6 @@ describe("Marketplace", function() {
       const {nft, USDC, USDT} = await loadFixture(deploy);
 
       const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-      await expect(MarketplaceFactory.deploy(100,nft.address,USDT.address, USDC.address)).to.be.revertedWith("It's unsual big comission, please, change it");
+      await expect(MarketplaceFactory.deploy(100,nft.address, USDC.address)).to.be.revertedWith("It's unsual big comission, please, change it");
     });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 });
