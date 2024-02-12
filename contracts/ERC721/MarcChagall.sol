@@ -23,7 +23,7 @@ contract MarcChagall is Initializable, ERC721Upgradeable, OwnableUpgradeable {
             "ipfs://bafybeic4nffxipaekoennii4iwinlgoqpunyrilamqv3bykjgiyluuj5r4/";
     }
 
-    function safeMint(address to) public onlyOwner {
+    function safeMint(address to) public {
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
     }

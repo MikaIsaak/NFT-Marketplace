@@ -4,6 +4,7 @@ import "@openzeppelin/hardhat-upgrades";
 import "hardhat-prettier";
 import "hardhat-deploy";
 import "@typechain/hardhat";
+import "@nomicfoundation/hardhat-network-helpers";
 
 import { HardhatUserConfig } from "hardhat/config";
 require('dotenv').config();
@@ -25,8 +26,8 @@ module.exports = {
   networks: {
     hardhat: {
      forking: {
-      // url: API_URL,
-      // account: [`0x${PRIVATE_KEY}`]
+      url: API_URL,
+      account: [`0x${PRIVATE_KEY}`]
     }
   },
     sepolia: {

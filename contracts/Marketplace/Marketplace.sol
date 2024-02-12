@@ -8,6 +8,7 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract Marketplace {
     MarcChagall nft;
+    // payable??
     address payable private immutable feeAccount;
     uint8 public immutable feePercent;
     uint256 private itemCount;
@@ -56,11 +57,11 @@ contract Marketplace {
         uint256 _tokenId,
         uint256 _price
     ) external onlyNftOwner(msg.sender, _tokenId) {
-        require(_price > 0, "Price must be greater than zero");
+        require(_price > 0, "Price shouldn't be equal zero");
         require(
             nft.getApproved(_tokenId) == address(this) ||
                 nft.isApprovedForAll(msg.sender, address(this)),
-            "You havent approved NFT for this contract"
+            "You haven't approved NFT for this contract"
         );
 
         itemCount++;
