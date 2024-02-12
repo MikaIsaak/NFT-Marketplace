@@ -1,53 +1,66 @@
-// import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
-// import { assert, expect } from "chai";
-// import {ethers} from "hardhat";
-// import { BigNumber } from "ethers";
-// import { ERC721MC, ERC721MC__factory } from "../typechain-types";
-// import { Marketplace } from "../typechain-types";
+import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
+import { assert, expect } from "chai";
+import { ethers, upgrades, network } from "hardhat";
+import { BigNumber } from "ethers";
+import { MarcChagall } from "../typechain-types";
 
-// describe("MarcChagallCollection", function() {
-//     async function deploy() {
-//       const [ owner,fee,usdc,usdt ] = await ethers.getSigners();
+async function deploy() {
+  await network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: ["0xC05da40E0017A98444FCf8708E747227113c6619"],
+  });
 
-//       const Factory = await ethers.getContractFactory("ERC721MC");
-//       const contract = await Factory.deploy(owner.address);
-//       await contract.deployed();
+  const deployer = await ethers.getSigner(
+    "0xC05da40E0017A98444FCf8708E747227113c6619"
+  );
 
-//       const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-//       const marketplace = await MarketplaceFactory.deploy(10,fee.address,usdc.address,usdt.address);
-//       await marketplace.deployed();
-  
-//       return { owner, contract }
-//     }
+  await network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: ["0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe"],
+  });
 
+  const user = await ethers.getSigner(
+    "0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe"
+  );
 
-//     it("Should mint 1 token", async() => {
-//         const { owner, contract } = await loadFixture(deploy);
+  const nftFactory = await ethers.getContractFactory("MarcChagall");
+  const NFT = await upgrades.deployProxy(nftFactory, [deployer.address], {
+    initializer: "initialize",
+  });
+  await NFT.deployed();
 
-//         const mintTx = await contract.safeMint(owner.address, "");
-//         await mintTx.wait();
+  return { deployer, user, NFT };
+}
 
-//         expect(await contract.balanceOf(owner.address)).to.eq(1);
-//     });
+describe("Initialize", async () => {
+  it("Should initizialise ERC721", async () => {
+    const { deployer, NFT } = await loadFixture(deploy);
 
-//     it("Should return correct baseUri", async() => {
-//         const { owner, contract } = await loadFixture(deploy);
+    expect(await NFT.name()).to.eq("Marc Chagall");
+    expect(await NFT.owner()).to.eq(deployer.address);
+    expect(await NFT.symbol()).to.eq("MC");
+  });
 
-//         const mintTx = await contract.safeMint(owner.address, "");
-//         await mintTx.wait();
+  it("Shouldn't initialize without address", async () => {
+    const { deployer, user, NFT } = await loadFixture(deploy);
 
-//         const targetURI = "ipfs://bafybeic4nffxipaekoennii4iwinlgoqpunyrilamqv3bykjgiyluuj5r4/0";
-//         const factUri =  await contract.tokenURI(0);
-//         console.log(factUri);
+    await expect(
+        NFT.connect(user).initialize(user.address)
+    ).to.be.revertedWithCustomError(NFT, "InvalidInitialization");
+  });
+});
 
-//         expect(factUri).to.equal(targetURI);
-//     });
+describe("_baseURI", function () {
+  it("Should return correct baseURI of token", async () => {
+    const { deployer, NFT } = await loadFixture(deploy);
 
-//     it("Should support inteface", async() => {
-//         const { owner, contract } = await loadFixture(deploy);
+    const mintTx = await NFT.safeMint(deployer.address);
+    await mintTx.wait();
 
-//         const interfaceId = "0x5b5e139f";
-        
-//         expect(await contract.supportsInterface(interfaceId)).to.be.true;
-//     });
-// });
+    const targetURI =
+      "ipfs://bafybeic4nffxipaekoennii4iwinlgoqpunyrilamqv3bykjgiyluuj5r4/0";
+    const factUri = await NFT.tokenURI(0);
+
+    expect(factUri).to.equal(targetURI);
+  });
+});

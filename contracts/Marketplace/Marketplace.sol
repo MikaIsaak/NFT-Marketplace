@@ -7,25 +7,26 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 contract Marketplace {
+    using SafeERC20 for IERC20;
+
     MarcChagall nft;
-    // payable??
-    address payable private immutable feeAccount;
+    address private immutable feeAccount;
     uint8 public immutable feePercent;
     uint256 private itemCount;
     IERC20 public immutable USDC;
     mapping(uint256 => Item) public items;
 
     struct Item {
-        uint itemId;
-        uint tokenId;
-        uint price;
+        uint256 itemId;
+        uint256 tokenId;
+        uint256 price;
         address payable seller;
         bool onSale;
     }
 
-    event Offered(uint itemId, uint price, address indexed seller);
+    event Offered(uint256 itemId, uint256 price, address indexed seller);
 
-    event Bought(uint itemId, uint price, address indexed buyer);
+    event Bought(uint256 itemId, uint256 price, address indexed buyer);
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
         require(
@@ -57,7 +58,7 @@ contract Marketplace {
         uint256 _tokenId,
         uint256 _price
     ) external onlyNftOwner(msg.sender, _tokenId) {
-        require(_price > 0, "Price shouldn't be equal zero");
+        require(_price != 0, "Price shouldn't be equal zero");
         require(
             nft.getApproved(_tokenId) == address(this) ||
                 nft.isApprovedForAll(msg.sender, address(this)),
@@ -81,7 +82,7 @@ contract Marketplace {
         require(item.onSale, "Item isn't on sale");
         require(msg.sender != item.seller, "You can't buy NFT from yourself");
 
-        uint totalPrice = getTotalPrice(_itemId);
+        uint256 totalPrice = getTotalPrice(_itemId);
         require(
             USDC.balanceOf(msg.sender) >= totalPrice,
             "Insufficient funds for buying NFT"
@@ -89,11 +90,11 @@ contract Marketplace {
 
         item.onSale = false;
 
-        USDC.transferFrom(msg.sender, item.seller, item.price);
+        USDC.safeTransferFrom(msg.sender, item.seller, item.price);
 
-        USDC.transferFrom(msg.sender, feeAccount, totalPrice - item.price);
+        USDC.safeTransferFrom(msg.sender, feeAccount, totalPrice - item.price);
 
-        nft.transferFrom(item.seller, msg.sender, item.tokenId);
+        nft.safeTransferFrom(item.seller, msg.sender, item.tokenId);
 
         emit Bought(_itemId, item.price, msg.sender);
     }

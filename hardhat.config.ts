@@ -18,13 +18,25 @@ const config: HardhatUserConfig = {
 const { API_URL, PRIVATE_KEY } = process.env;
 
 module.exports = {
-  solidity: "0.8.20",
+  solidity: {
+    version: "0.8.20",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 100,
+      },
+    },
+  },
   defaultNetwork: "hardhat",
   etherscan: {
     apiKey: "QNX9ZW3KIIK624BHXI8PYXZC4AINCN8TEW"
   },
+  mocha: {
+    timeout: 100000000,
+  },
   networks: {
     hardhat: {
+     gas: 1800000,
      forking: {
       url: API_URL,
       account: [`0x${PRIVATE_KEY}`]

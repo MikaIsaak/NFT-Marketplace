@@ -10,5 +10,5 @@ interface IMarketplace {
 
     function removeListing(uint256 _tokenId) external;
 
-    function getTotalPrice(uint256 _itemID) external view returns (uint);
+    function getTotalPrice(uint256 _itemID) external view returns (uint256);
 }

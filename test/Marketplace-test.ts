@@ -1,175 +1,302 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { assert, expect } from "chai";
-import {ethers, network} from "hardhat";
-require('dotenv').config();
-import { BigNumber } from "ethers";
+import { ethers, network, upgrades } from "hardhat";
 import { Marketplace } from "../typechain-types";
 import { MarcChagall } from "../typechain-types";
 import { token } from "../typechain-types/@openzeppelin/contracts";
+require("dotenv").config();
 
-    async function deploy() {
-       await network.provider.request({
-       method: "hardhat_impersonateAccount",
-       params: ["0xC05da40E0017A98444FCf8708E747227113c6619"],
-       });
+async function deploy() {
+  await network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: ["0xC05da40E0017A98444FCf8708E747227113c6619"],
+  });
 
-      const owner = await ethers.getSigner("0xC05da40E0017A98444FCf8708E747227113c6619");
+  const deployer = await ethers.getSigner(
+    "0xC05da40E0017A98444FCf8708E747227113c6619"
+  );
 
+  await network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: ["0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe"],
+  });
 
-      await network.provider.request({
-       method: "hardhat_impersonateAccount",
-       params: ["0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe"],
-       });
+  const user = await ethers.getSigner(
+    "0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe"
+  );
 
-      const user = await ethers.getSigner("0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe");
+  const USDCAddress = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+  const USDCAbi = require("../abi.json");
+  const USDC = new ethers.Contract(USDCAddress, USDCAbi, deployer);
 
+  const nftFactory = await ethers.getContractFactory("MarcChagall");
+  const NFT = await upgrades.deployProxy(nftFactory, [deployer.address], {
+    initializer: "initialize",
+  });
+  await NFT.deployed();
 
+  const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
+  const marketplace = await MarketplaceFactory.deploy(
+    10,
+    NFT.address,
+    USDC.address
+  );
+  await marketplace.deployed();
 
-      const USDCAddress = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
-      const USDCAbi = [{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"authorizer","type":"address"},{"indexed":true,"internalType":"bytes32","name":"nonce","type":"bytes32"}],"name":"AuthorizationCanceled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"authorizer","type":"address"},{"indexed":true,"internalType":"bytes32","name":"nonce","type":"bytes32"}],"name":"AuthorizationUsed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_account","type":"address"}],"name":"Blacklisted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"newBlacklister","type":"address"}],"name":"BlacklisterChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"burner","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Burn","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"newMasterMinter","type":"address"}],"name":"MasterMinterChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"minter","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Mint","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"minter","type":"address"},{"indexed":false,"internalType":"uint256","name":"minterAllowedAmount","type":"uint256"}],"name":"MinterConfigured","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"oldMinter","type":"address"}],"name":"MinterRemoved","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":false,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"newAddress","type":"address"}],"name":"PauserChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"newRescuer","type":"address"}],"name":"RescuerChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_account","type":"address"}],"name":"UnBlacklisted","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"inputs":[],"name":"CANCEL_AUTHORIZATION_TYPEHASH","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DOMAIN_SEPARATOR","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"PERMIT_TYPEHASH","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"RECEIVE_WITH_AUTHORIZATION_TYPEHASH","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"TRANSFER_WITH_AUTHORIZATION_TYPEHASH","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"authorizer","type":"address"},{"internalType":"bytes32","name":"nonce","type":"bytes32"}],"name":"authorizationState","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"blacklist","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"blacklister","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"burn","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"authorizer","type":"address"},{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"cancelAuthorization","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"authorizer","type":"address"},{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"cancelAuthorization","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"minter","type":"address"},{"internalType":"uint256","name":"minterAllowedAmount","type":"uint256"}],"name":"configureMinter","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"currency","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"decrement","type":"uint256"}],"name":"decreaseAllowance","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"increment","type":"uint256"}],"name":"increaseAllowance","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"tokenName","type":"string"},{"internalType":"string","name":"tokenSymbol","type":"string"},{"internalType":"string","name":"tokenCurrency","type":"string"},{"internalType":"uint8","name":"tokenDecimals","type":"uint8"},{"internalType":"address","name":"newMasterMinter","type":"address"},{"internalType":"address","name":"newPauser","type":"address"},{"internalType":"address","name":"newBlacklister","type":"address"},{"internalType":"address","name":"newOwner","type":"address"}],"name":"initialize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"newName","type":"string"}],"name":"initializeV2","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"lostAndFound","type":"address"}],"name":"initializeV2_1","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address[]","name":"accountsToBlacklist","type":"address[]"},{"internalType":"string","name":"newSymbol","type":"string"}],"name":"initializeV2_2","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"isBlacklisted","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"isMinter","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"masterMinter","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"mint","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"minter","type":"address"}],"name":"minterAllowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"nonces","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pause","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pauser","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"permit","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"permit","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"validAfter","type":"uint256"},{"internalType":"uint256","name":"validBefore","type":"uint256"},{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"receiveWithAuthorization","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"validAfter","type":"uint256"},{"internalType":"uint256","name":"validBefore","type":"uint256"},{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"receiveWithAuthorization","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"minter","type":"address"}],"name":"removeMinter","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"contract IERC20","name":"tokenContract","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"rescueERC20","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"rescuer","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"validAfter","type":"uint256"},{"internalType":"uint256","name":"validBefore","type":"uint256"},{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"transferWithAuthorization","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"validAfter","type":"uint256"},{"internalType":"uint256","name":"validBefore","type":"uint256"},{"internalType":"bytes32","name":"nonce","type":"bytes32"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"transferWithAuthorization","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_account","type":"address"}],"name":"unBlacklist","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"unpause","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newBlacklister","type":"address"}],"name":"updateBlacklister","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newMasterMinter","type":"address"}],"name":"updateMasterMinter","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newPauser","type":"address"}],"name":"updatePauser","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newRescuer","type":"address"}],"name":"updateRescuer","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"version","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"}];
-      const USDC = new ethers.Contract(USDCAddress,USDCAbi, owner);
+  return { deployer, user, USDC, NFT, marketplace };
+}
 
-      const nftFactory = await ethers.getContractFactory("MarcChagall");
-      const nft = await nftFactory.deploy();
-      await nft.deployed();
+describe("Constructor", async () => {
+  it("Should successfully deploy smart-contract", async () => {
+    const { deployer, USDC, NFT } = await loadFixture(deploy);
 
-      const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-      const marketplace = await MarketplaceFactory.deploy(10,nft.address, USDC.address);
-      await marketplace.deployed();
+    const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
+    const marketplace = await MarketplaceFactory.deploy(
+      10,
+      NFT.address,
+      USDC.address
+    );
+    await marketplace.deployed();
 
-      return {owner,user, USDC, nft, marketplace} 
-    }
+    expect(await marketplace.feePercent()).to.be.equal(10);
+    expect(await marketplace.USDC()).to.be.equal(
+      "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+    );
+  });
 
-    describe("Mint", function() {
-      it("Should mint NFT", async() => {
-      const {owner, marketplace, nft} = await loadFixture(deploy);
+  it("Should revert if fee percent is above 99", async () => {
+    const { deployer, USDC, NFT } = await loadFixture(deploy);
 
-      const mintTx = await marketplace.connect(owner).mint();
-
-      expect(await nft.balanceOf(owner.address)).to.be.eq(1);
-      });
-    });
-
-    describe("List item", function() {
-
-      it("Should list item", async() => {
-        const {owner, marketplace, nft} = await loadFixture(deploy);  
-
-        const mintTx = await marketplace.mint();
-
-        const approveTx = await nft.setApprovalForAll(marketplace.address, true);
-
-        const listTx = await marketplace.listItem(0,5);
-
-        expect(listTx).to.emit(marketplace,"Offered").withArgs(1,5,owner.address);
-      });      
-      
-      it("Should revert if price equals zero", async() => {
-        const {owner, marketplace} = await loadFixture(deploy);  
-
-        const tx = await marketplace.mint();
-
-        await expect( marketplace.listItem(0,0)).to.be.revertedWith("Price shouldn't be equal zero");
-      });
-
-      it("Should revert if NFT isn't approved for contract", async() => {
-        const {owner, marketplace, nft} = await loadFixture(deploy);
-
-        const mintTx = await marketplace.connect(owner).mint();
-
-        await expect(marketplace.connect(owner).listItem(0,1)).to.be.revertedWith("You haven't approved NFT for this contract");
-      });
-
-    describe("purchaseItem", async() => {
-      // it("Should purchase Item", async() => {
-      //   const {owner, user, marketplace,nft, USDC} = await loadFixture(deploy);
-      //   const price = ethers.utils.parseUnits("1",6);
-      //   const allowance = ethers.utils.parseUnits("10",6);
-
-      //   const mintTx = await marketplace.connect(owner).mint();
-
-      //   const approveTx = await nft.connect(owner).setApprovalForAll(marketplace.address, true);
-
-
-      //   const listTx = await marketplace.connect(owner).listItem(0,price);
-
-      //   const UsdcApproveTx = await USDC.connect(user).approve(marketplace.address, allowance);
-
-      //   expect(await marketplace.connect(user).purchaseItem(1)).to.emit(marketplace, "Bought").withArgs(1,price,user.address);
-      //   expect( await marketplace.connect(user).purchaseItem(1))
-      //      .to.changeTokenBalances(USDC, [owner, user], [5, -5]);
-      //   expect(await marketplace.connect(user).purchaseItem(1))
-      //      .to.changeTokenBalances(nft, [owner, user], [-1, 1]);   
-      // });
-
-      it("Should revert if Item isn't on sale", async() => {
-        const {owner, user, marketplace,nft, USDC} = await loadFixture(deploy);
-
-        expect(marketplace.purchaseItem(1)).to.be.revertedWith("Item isn't on sale");
-      });
-
-      it("Should revert if buyer is message sender", async() => {
-        const {owner, user, marketplace,nft, USDC} = await loadFixture(deploy);
-
-        const mintTx = await marketplace.connect(owner).mint();
-
-        const approveTx = await nft.connect(owner).setApprovalForAll(marketplace.address, true);
-
-        const listTx = await marketplace.connect(owner).listItem(0,5);
-
-        const UsdcApproveTx = await USDC.connect(owner).approve(marketplace.address, 10000);
-
-        await expect(marketplace.connect(owner).purchaseItem(1)).to.be.revertedWith("You can't buy NFT from yourself");
-      });
-
-      it("Should revert if buyer USDC balance isn't enough for buying NFT", async() => {
-        const {owner, user, marketplace,nft, USDC} = await loadFixture(deploy);
-        const price = ethers.utils.parseUnits("100",6);
-
-
-        const mintTx = await marketplace.connect(owner).mint();
-
-        const approveTx = await nft.connect(owner).setApprovalForAll(marketplace.address, true);
-
-        const listTx = await marketplace.connect(owner).listItem(0,price);
-
-        const UsdcApproveTx = await USDC.connect(user).approve(marketplace.address, price);
-
-        await expect(marketplace.connect(user).purchaseItem(1)).to.be.revertedWith("Insufficient funds for buying NFT");
-      }); 
-    });
-
-    describe("removeListing", function() {
-      it("Should revert if non-owner trying to delist item", async() => {
-        const {owner, user, marketplace,nft, USDC} = await loadFixture(deploy);
-        const price = ethers.utils.parseUnits("1",6);
-
-        const mintTx = await marketplace.connect(owner).mint();
-
-        const approveTx = await nft.connect(owner).setApprovalForAll(marketplace.address, true);
-
-        const listTx = await marketplace.connect(owner).listItem(0,price);
-
-        await expect(marketplace.connect(user).removeListing(1)).to.be.revertedWith("You aren't the seller");
-      });
-
-      it("Should revert if item isn't listed", async() => {
-        const {owner, user, marketplace,nft, USDC} = await loadFixture(deploy);
-        const price = ethers.utils.parseUnits("1",6);
-
-        const mintTx = await marketplace.connect(owner).mint();
-
-        const approveTx = await nft.connect(owner).setApprovalForAll(marketplace.address, true);
-
-        const listTx = await marketplace.connect(owner).listItem(0,price);
-
-        await expect(marketplace.connect(user).removeListing(1)).to.be.revertedWith("You aren't the seller");
+    const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
+    await expect(
+      MarketplaceFactory.deploy(100, NFT.address, USDC.address, {
+        gasLimit: 10000000,
       })
-    })
+    ).to.be.revertedWith("It's unsual big comission, please, change it");
+  });
+});
 
+describe("Mint", function () {
+  it("Should mint NFT", async () => {
+    const { deployer, marketplace, NFT } = await loadFixture(deploy);
 
-    
-    
+    const mintTx = await marketplace.connect(deployer).mint();
 
+    expect(await NFT.balanceOf(deployer.address)).to.be.eq(1);
+  });
+});
 
+describe("List item", function () {
+  it("Should list item if approved for all", async () => {
+    const { deployer, marketplace, NFT } = await loadFixture(deploy);
+
+    const mintTx = await marketplace.mint();
+
+    const approveTx = await NFT.setApprovalForAll(marketplace.address, true);
+
+    const listTx = await marketplace.listItem(0, 5);
+
+    expect(listTx)
+      .to.emit(marketplace, "Offered")
+      .withArgs(1, 5, deployer.address);
+  });
+
+  it("Should list item if approved for all", async () => {
+    const { deployer, marketplace, NFT } = await loadFixture(deploy);
+
+    const mintTx = await marketplace.mint();
+
+    const approveTx = await NFT.approve(marketplace.address, 0);
+
+    const listTx = await marketplace.listItem(0, 5);
+
+    expect(listTx)
+      .to.emit(marketplace, "Offered")
+      .withArgs(1, 5, deployer.address);
+  });
+
+  it("Should revert if price equals zero", async () => {
+    const { deployer, marketplace } = await loadFixture(deploy);
+
+    const tx = await marketplace.mint();
+
+    await expect(marketplace.listItem(0, 0)).to.be.revertedWith(
+      "Price shouldn't be equal zero"
+    );
+  });
+
+  it("Should revert if NFT isn't approved for contract", async () => {
+    const { deployer, marketplace, NFT } = await loadFixture(deploy);
+
+    const mintTx = await marketplace.connect(deployer).mint();
+
+    await expect(
+      marketplace.connect(deployer).listItem(0, 1)
+    ).to.be.revertedWith("You haven't approved NFT for this contract");
+  });
+
+  it("Should revert if NFT is tried to be listed not by NFT owner ", async () => {
+    const { deployer, user, marketplace, NFT } = await loadFixture(deploy);
+
+    const mintTx = await marketplace.connect(deployer).mint();
+
+    await expect(marketplace.connect(user).listItem(0, 1)).to.be.revertedWith(
+      "You aren't owner of the token"
+    );
+  });
+
+  describe("purchaseItem", async () => {
+    it("Should purchase Item", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      const price = ethers.utils.parseUnits("1", 6);
+      const allowance = ethers.utils.parseUnits("10", 6);
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const listTx = await marketplace.connect(deployer).listItem(0, price);
+
+      const UsdcApproveTx = await USDC.connect(user).approve(
+        marketplace.address,
+        allowance
+      );
+
+      const buyTx = await marketplace.connect(user).purchaseItem(1);
+
+      expect(buyTx)
+        .to.emit(marketplace, "Bought")
+        .withArgs(1, price, user.address);
+      expect(buyTx).to.changeTokenBalances(USDC, [deployer, user], [5, -5]);
+      expect(buyTx).to.changeTokenBalances(NFT, [deployer, user], [-1, 1]);
     });
+
+    it("Should revert if Item isn't on sale", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      expect(marketplace.purchaseItem(1)).to.be.revertedWith(
+        "Item isn't on sale"
+      );
+    });
+
+    it("Should revert if buyer is message sender", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const listTx = await marketplace.connect(deployer).listItem(0, 5);
+
+      const UsdcApproveTx = await USDC.connect(deployer).approve(
+        marketplace.address,
+        10000
+      );
+
+      await expect(
+        marketplace.connect(deployer).purchaseItem(1)
+      ).to.be.revertedWith("You can't buy NFT from yourself");
+    });
+
+    it("Should revert if buyer USDC balance isn't enough for buying NFT", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      const price = ethers.utils.parseUnits("100", 6);
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const listTx = await marketplace.connect(deployer).listItem(0, price);
+
+      const UsdcApproveTx = await USDC.connect(user).approve(
+        marketplace.address,
+        price
+      );
+
+      await expect(
+        marketplace.connect(user).purchaseItem(1)
+      ).to.be.revertedWith("Insufficient funds for buying NFT");
+    });
+  });
+
+  describe("removeListing", function () {
+    it("Should remove listing", async () => {
+      const { deployer, marketplace, NFT, USDC } = await loadFixture(deploy);
+      const price = ethers.utils.parseUnits("1", 6);
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const listTx = await marketplace.connect(deployer).listItem(0, price);
+
+      const delistTX = await marketplace.connect(deployer).removeListing(1);
+
+      const struct = await marketplace.items(1);
+
+      expect(struct.onSale).to.eq(false);
+    });
+
+    it("Should revert if non-owner trying to delist item", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      const price = ethers.utils.parseUnits("1", 6);
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const listTx = await marketplace.connect(deployer).listItem(0, price);
+
+      await expect(
+        marketplace.connect(user).removeListing(1)
+      ).to.be.revertedWith("You aren't the seller");
+    });
+
+    it("Should revert if item isn't listed", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      const price = ethers.utils.parseUnits("1", 6);
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const listTx = await marketplace.connect(deployer).listItem(0, price);
+
+      const delistTX = await marketplace.connect(deployer).removeListing(1);
+
+      await expect(
+        marketplace.connect(deployer).removeListing(1)
+      ).to.be.revertedWith("This item isn't listed");
+    });
+  });
+});
