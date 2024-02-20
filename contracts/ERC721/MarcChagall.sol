@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract MarcChagall is Initializable, ERC721Upgradeable, OwnableUpgradeable {
     uint256 private _nextTokenId;
@@ -13,7 +13,7 @@ contract MarcChagall is Initializable, ERC721Upgradeable, OwnableUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(address initialOwner) public initializer {
+    function initialize(address initialOwner) external initializer {
         __ERC721_init("Marc Chagall", "MC");
         __Ownable_init(initialOwner);
     }
@@ -23,7 +23,7 @@ contract MarcChagall is Initializable, ERC721Upgradeable, OwnableUpgradeable {
             "ipfs://bafybeic4nffxipaekoennii4iwinlgoqpunyrilamqv3bykjgiyluuj5r4/";
     }
 
-    function safeMint(address to) public {
+    function safeMint(address to) external {
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
     }

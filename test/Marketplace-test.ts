@@ -36,12 +36,21 @@ async function deploy() {
   await NFT.deployed();
 
   const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-  const marketplace = await MarketplaceFactory.deploy(
-    10,
-    NFT.address,
-    USDC.address
+  const marketplace = await upgrades.deployProxy(
+    MarketplaceFactory,
+    [10, NFT.address, USDC.address],
+    { initializer: "initialize" }
   );
   await marketplace.deployed();
+  console.log("Proxy address is ", marketplace.address);
+  console.log(
+    "Admin proxy contract address is ",
+    await upgrades.erc1967.getAdminAddress(marketplace.address)
+  );
+  console.log(
+    "Implementation address is ",
+    await upgrades.erc1967.getImplementationAddress(marketplace.address)
+  );
 
   return { deployer, user, USDC, NFT, marketplace };
 }
@@ -51,10 +60,10 @@ describe("Constructor", async () => {
     const { deployer, USDC, NFT } = await loadFixture(deploy);
 
     const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
-    const marketplace = await MarketplaceFactory.deploy(
-      10,
-      NFT.address,
-      USDC.address
+    const marketplace = await upgrades.deployProxy(
+      MarketplaceFactory,
+      [10, NFT.address, USDC.address],
+      { initializer: "initialize" }
     );
     await marketplace.deployed();
 
@@ -69,9 +78,11 @@ describe("Constructor", async () => {
 
     const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
     await expect(
-      MarketplaceFactory.deploy(100, NFT.address, USDC.address, {
-        gasLimit: 10000000,
-      })
+      upgrades.deployProxy(
+        MarketplaceFactory,
+        [100, NFT.address, USDC.address],
+        { initializer: "initialize" }
+      )
     ).to.be.revertedWith("It's unsual big comission, please, change it");
   });
 });
@@ -167,11 +178,11 @@ describe("List item", function () {
         allowance
       );
 
-      const buyTx = await marketplace.connect(user).purchaseItem(1);
+      const buyTx = await marketplace.connect(user).purchaseItem(0);
 
       expect(buyTx)
         .to.emit(marketplace, "Bought")
-        .withArgs(1, price, user.address);
+        .withArgs(0, price, user.address);
       expect(buyTx).to.changeTokenBalances(USDC, [deployer, user], [5, -5]);
       expect(buyTx).to.changeTokenBalances(NFT, [deployer, user], [-1, 1]);
     });
@@ -206,7 +217,7 @@ describe("List item", function () {
       );
 
       await expect(
-        marketplace.connect(deployer).purchaseItem(1)
+        marketplace.connect(deployer).purchaseItem(0)
       ).to.be.revertedWith("You can't buy NFT from yourself");
     });
 
@@ -231,7 +242,7 @@ describe("List item", function () {
       );
 
       await expect(
-        marketplace.connect(user).purchaseItem(1)
+        marketplace.connect(user).purchaseItem(0)
       ).to.be.revertedWith("Insufficient funds for buying NFT");
     });
   });
@@ -250,9 +261,9 @@ describe("List item", function () {
 
       const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-      const delistTX = await marketplace.connect(deployer).removeListing(1);
+      const delistTX = await marketplace.connect(deployer).removeListing(0);
 
-      const struct = await marketplace.items(1);
+      const struct = await marketplace.items(0);
 
       expect(struct.onSale).to.eq(false);
     });
@@ -292,11 +303,24 @@ describe("List item", function () {
 
       const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-      const delistTX = await marketplace.connect(deployer).removeListing(1);
+      const delistTX = await marketplace.connect(deployer).removeListing(0);
 
       await expect(
-        marketplace.connect(deployer).removeListing(1)
+        marketplace.connect(deployer).removeListing(0)
       ).to.be.revertedWith("This item isn't listed");
+    });
+  });
+
+  describe("createBid", function () {
+    it("Should create bid", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      const price = ethers.utils.parseUnits("1", 6);
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      const createBidTx = await marketplace.createBid(0, price);
+      console.log(await marketplace.bids(0));
     });
   });
 });

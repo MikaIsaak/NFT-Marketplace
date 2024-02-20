@@ -45,7 +45,7 @@ describe("Initialize", async () => {
     const { deployer, user, NFT } = await loadFixture(deploy);
 
     await expect(
-        NFT.connect(user).initialize(user.address)
+      NFT.connect(user).initialize(user.address)
     ).to.be.revertedWithCustomError(NFT, "InvalidInitialization");
   });
 });

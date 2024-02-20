@@ -5,28 +5,20 @@ import {MarcChagall} from "../ERC721/MarcChagall.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IMarketplace} from "./IMarketplace.sol";
 
-contract Marketplace {
+contract Marketplace is Initializable, IMarketplace {
     using SafeERC20 for IERC20;
 
-    MarcChagall nft;
-    address private immutable feeAccount;
-    uint8 public immutable feePercent;
+    MarcChagall public nft;
+    address private feeReceiver;
+    uint8 public feePercent;
     uint256 private itemCount;
-    IERC20 public immutable USDC;
+    IERC20 public USDC;
     mapping(uint256 => Item) public items;
-
-    struct Item {
-        uint256 itemId;
-        uint256 tokenId;
-        uint256 price;
-        address payable seller;
-        bool onSale;
-    }
-
-    event Offered(uint256 itemId, uint256 price, address indexed seller);
-
-    event Bought(uint256 itemId, uint256 price, address indexed buyer);
+    mapping(uint256 => Bid[]) public bids;
+    mapping(uint256 => uint256) public bidsCounter;
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
         require(
@@ -36,13 +28,22 @@ contract Marketplace {
         _;
     }
 
-    constructor(uint8 _feePercent, address _nftAddress, address _USDC) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
+        uint8 _feePercent,
+        address _nftAddress,
+        address _USDC
+    ) public initializer {
         require(
             _feePercent < 100,
             "It's unsual big comission, please, change it"
         );
 
-        feeAccount = payable(msg.sender);
+        feeReceiver = payable(msg.sender);
         feePercent = _feePercent;
         nft = MarcChagall(_nftAddress);
         USDC = IERC20(_USDC);
@@ -65,24 +66,17 @@ contract Marketplace {
             "You haven't approved NFT for this contract"
         );
 
-        itemCount++;
-        items[itemCount] = Item(
-            itemCount,
-            _tokenId,
-            _price,
-            payable(msg.sender),
-            true
-        );
+        items[_tokenId] = Item(_price, payable(msg.sender), true);
 
         emit Offered(itemCount, _price, msg.sender);
     }
 
-    function purchaseItem(uint256 _itemId) external {
-        Item storage item = items[_itemId];
+    function purchaseItem(uint256 _tokenId) external {
+        Item storage item = items[_tokenId];
         require(item.onSale, "Item isn't on sale");
         require(msg.sender != item.seller, "You can't buy NFT from yourself");
 
-        uint256 totalPrice = getTotalPrice(_itemId);
+        uint256 totalPrice = getTotalPrice(_tokenId);
         require(
             USDC.balanceOf(msg.sender) >= totalPrice,
             "Insufficient funds for buying NFT"
@@ -92,11 +86,11 @@ contract Marketplace {
 
         USDC.safeTransferFrom(msg.sender, item.seller, item.price);
 
-        USDC.safeTransferFrom(msg.sender, feeAccount, totalPrice - item.price);
+        USDC.safeTransferFrom(msg.sender, feeReceiver, totalPrice - item.price);
 
-        nft.safeTransferFrom(item.seller, msg.sender, item.tokenId);
+        nft.safeTransferFrom(item.seller, msg.sender, _tokenId);
 
-        emit Bought(_itemId, item.price, msg.sender);
+        emit Bought(_tokenId, item.price, msg.sender);
     }
 
     function removeListing(uint256 _itemId) external {
@@ -107,8 +101,53 @@ contract Marketplace {
     }
 
     function getTotalPrice(
-        uint256 _itemId
-    ) internal view returns (uint256 _totalPrice) {
-        return ((items[_itemId].price * (100 + feePercent)) / 100);
+        uint256 _tokenId
+    ) public view returns (uint256 _totalPrice) {
+        return ((items[_tokenId].price * (100 + feePercent)) / 100);
+    }
+
+    // Bid interface
+    function createBid(uint256 _tokenId, uint256 _price) external {
+        // require(
+        //     USDC.balanceOf(msg.sender) >= _price,
+        //     "Insufficient funds for buying NFT"
+        // );
+        // error
+        require(
+            nft.ownerOf(_tokenId) != address(0),
+            "Nft with this item doesn't exist"
+        );
+        require(_price != 0, "Price shouldn't be equal zero");
+
+        // creates a new one
+        bids[_tokenId][bidsCounter[_tokenId]] = Bid(msg.sender, _price);
+        bidsCounter[_tokenId]++;
+    }
+
+    function acceptBid(uint256 _tokenId, uint256 _offerId) external {
+        require(
+            nft.ownerOf(_tokenId) == msg.sender,
+            "You aren't owner of the NFT you want to sell"
+        );
+        require(bids[_tokenId][_offerId].price != 0, "This bid doesn't exist");
+        require(nft.ownerOf(_tokenId) != address(0));
+
+        if (items[_tokenId].onSale) {
+            items[_tokenId].onSale = false;
+        }
+
+        delete bids[_tokenId][_offerId];
+    }
+
+    function cancelBid(uint256 _tokenId, uint256 _offerId) external {
+        require(
+            bids[_tokenId][_offerId].buyer == msg.sender,
+            "You can't cancel not your bid"
+        );
+        delete bids[_tokenId][_offerId];
+    }
+
+    function getBids(uint256 _tokenId) external view returns (Bid[] memory) {
+        return bids[_tokenId];
     }
 }
