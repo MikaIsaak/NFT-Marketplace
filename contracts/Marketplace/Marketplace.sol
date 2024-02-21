@@ -8,6 +8,8 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
 
+import "hardhat/console.sol";
+
 contract Marketplace is Initializable, IMarketplace {
     using SafeERC20 for IERC20;
 
@@ -108,33 +110,37 @@ contract Marketplace is Initializable, IMarketplace {
 
     // Bid interface
     function createBid(uint256 _tokenId, uint256 _price) external {
-        // require(
-        //     USDC.balanceOf(msg.sender) >= _price,
-        //     "Insufficient funds for buying NFT"
-        // );
-        // error
         require(
             nft.ownerOf(_tokenId) != address(0),
             "Nft with this item doesn't exist"
         );
         require(_price != 0, "Price shouldn't be equal zero");
 
-        // creates a new one
-        bids[_tokenId][bidsCounter[_tokenId]] = Bid(msg.sender, _price);
-        bidsCounter[_tokenId]++;
+        bids[_tokenId].push(Bid(msg.sender, _price));
     }
 
     function acceptBid(uint256 _tokenId, uint256 _offerId) external {
+        Bid storage bid = bids[_tokenId][_offerId];
         require(
             nft.ownerOf(_tokenId) == msg.sender,
             "You aren't owner of the NFT you want to sell"
         );
-        require(bids[_tokenId][_offerId].price != 0, "This bid doesn't exist");
+        require(bid.price != 0, "This bid doesn't exist");
         require(nft.ownerOf(_tokenId) != address(0));
 
         if (items[_tokenId].onSale) {
             items[_tokenId].onSale = false;
         }
+
+        USDC.safeTransferFrom(bid.buyer, msg.sender, bid.price);
+
+        USDC.safeTransferFrom(
+            bid.buyer,
+            feeReceiver,
+            getTotalPrice(bid.price) - bid.price
+        );
+
+        nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
 
         delete bids[_tokenId][_offerId];
     }
