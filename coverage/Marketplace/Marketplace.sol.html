@@ -22,7 +22,7 @@
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Statements</span>
-        <span class='fraction'>33/33</span>
+        <span class='fraction'>38/38</span>
       </div>
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
@@ -37,7 +37,7 @@
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Lines</span>
-        <span class='fraction'>44/44</span>
+        <span class='fraction'>50/50</span>
       </div>
     </div>
   </div>
@@ -209,18 +209,7 @@
 164
 165
 166
-167
-168
-169
-170
-171
-172
-173
-174
-175</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+167</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -328,20 +317,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">10×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -353,10 +328,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">7×</span>
-<span class="cline-any cline-yes">7×</span>
-<span class="cline-any cline-yes">7×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7×</span>
+<span class="cline-any cline-yes">7×</span>
+<span class="cline-any cline-yes">7×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -370,7 +350,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2×</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -378,12 +357,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-yes">2×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2×</span>
+<span class="cline-any cline-yes">2×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1×</span>
 <span class="cline-any cline-yes">1×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -401,15 +385,12 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
 &nbsp;
-import "hardhat/console.sol";
-&nbsp;
 contract Marketplace is Initializable, IMarketplace {
     using SafeERC20 for IERC20;
 &nbsp;
     MarcChagall public nft;
     address private feeReceiver;
     uint8 public feePercent;
-    uint256 private itemCount;
     IERC20 public USDC;
     mapping(uint256 =&gt; Item) public items;
     mapping(uint256 =&gt; Bid[]) public bids;
@@ -431,7 +412,7 @@ contract Marketplace is Initializable, IMarketplace {
         uint8 _feePercent,
         address _nftAddress,
         address _USDC
-    ) public initializer {
+    ) external initializer {
         require(
             _feePercent &lt; 100,
             "It's unsual big comission, please, change it"
@@ -462,7 +443,7 @@ contract Marketplace is Initializable, IMarketplace {
 &nbsp;
         items[_tokenId] = Item(_price, payable(msg.sender), true);
 &nbsp;
-        emit Offered(itemCount, _price, msg.sender);
+        emit Offered(_tokenId, _price, msg.sender);
     }
 &nbsp;
     function purchaseItem(uint256 _tokenId) external {
@@ -500,25 +481,11 @@ contract Marketplace is Initializable, IMarketplace {
         return ((_price * (100 + feePercent)) / 100);
     }
 &nbsp;
-    // function sellWithTransfer(
-    //     uint256 _tokenId,
-    //     address _buyer,
-    //     address _seller,
-    //     uint256 _price
-    // ) internal {
-    //     USDC.safeTransferFrom(_buyer, _seller, _price);
-&nbsp;
-    //     uint fee = getTotalPrice(_price) - _price;
-    //     USDC.safeTransferFrom(_buyer, feeReceiver, fee);
-&nbsp;
-    //     nft.safeTransferFrom(msg.sender, _buyer, _tokenId);
-    // }
-&nbsp;
     // Bid interface
     function createBid(uint256 _tokenId, uint256 _price) external {
         require(
             nft.ownerOf(_tokenId) != address(0),
-            "Nft with this item doesn't exist"
+            "Nft with this token Id doesn't exist"
         );
         require(_price != 0, "Price shouldn't be equal zero");
         require(
@@ -527,10 +494,15 @@ contract Marketplace is Initializable, IMarketplace {
         );
 &nbsp;
         uint256 totalPrice = getTotalPrice(_price);
+&nbsp;
+        // require(
+        //     USDC.balanceOf(msg.sender) &gt;= totalPrice,
+        //     "You don't have enough funds for bid"
+        // );
+&nbsp;
         USDC.transferFrom(msg.sender, address(this), totalPrice);
         bids[_tokenId].push(Bid(msg.sender, _price));
-&nbsp;
-        //emit
+        emit BidCreated(_tokenId, msg.sender, _price);
     }
 &nbsp;
     function acceptBid(
@@ -543,21 +515,25 @@ contract Marketplace is Initializable, IMarketplace {
             items[_tokenId].onSale = false;
         }
 &nbsp;
-        USDC.safeTransfer(msg.sender, bid.price);
-&nbsp;
         uint fee = getTotalPrice(bid.price) - bid.price;
+        uint price = bid.price;
+        bid.price = 0;
+&nbsp;
+        USDC.safeTransfer(msg.sender, price);
+&nbsp;
         USDC.safeTransfer(feeReceiver, fee);
 &nbsp;
         nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
 &nbsp;
+        emit BidAccepted(_tokenId, bid.buyer, msg.sender, price);
         delete bids[_tokenId][_offerId];
     }
 &nbsp;
     function cancelBid(uint256 _tokenId, uint256 _offerId) external {
-        require(
-            bids[_tokenId][_offerId].buyer == msg.sender,
-            "You can't cancel not your bid"
-        );
+        Bid storage bid = bids[_tokenId][_offerId];
+        require(bid.buyer == msg.sender, "You can't cancel not your bid");
+&nbsp;
+        emit BidCanceled(_tokenId, msg.sender, bid.price);
         delete bids[_tokenId][_offerId];
     }
 &nbsp;
@@ -571,7 +547,7 @@ contract Marketplace is Initializable, IMarketplace {
 </div><!-- /wrapper -->
 <div class='footer quiet pad2 space-top1 center small'>
   Code coverage
-  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Thu Feb 22 2024 13:14:09 GMT+0100 (Central European Standard Time)
+  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Thu Feb 22 2024 15:00:45 GMT+0100 (Central European Standard Time)
 </div>
 </div>
 <script src="../prettify.js"></script>

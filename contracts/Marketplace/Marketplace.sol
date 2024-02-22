@@ -35,7 +35,7 @@ contract Marketplace is Initializable, IMarketplace {
         uint8 _feePercent,
         address _nftAddress,
         address _USDC
-    ) public initializer {
+    ) external initializer {
         require(
             _feePercent < 100,
             "It's unsual big comission, please, change it"
@@ -66,7 +66,7 @@ contract Marketplace is Initializable, IMarketplace {
 
         items[_tokenId] = Item(_price, payable(msg.sender), true);
 
-        emit Offered(_price, msg.sender);
+        emit Offered(_tokenId, _price, msg.sender);
     }
 
     function purchaseItem(uint256 _tokenId) external {
@@ -108,7 +108,7 @@ contract Marketplace is Initializable, IMarketplace {
     function createBid(uint256 _tokenId, uint256 _price) external {
         require(
             nft.ownerOf(_tokenId) != address(0),
-            "Nft with this item doesn't exist"
+            "Nft with this token Id doesn't exist"
         );
         require(_price != 0, "Price shouldn't be equal zero");
         require(
@@ -117,8 +117,15 @@ contract Marketplace is Initializable, IMarketplace {
         );
 
         uint256 totalPrice = getTotalPrice(_price);
+
+        // require(
+        //     USDC.balanceOf(msg.sender) >= totalPrice,
+        //     "You don't have enough funds for bid"
+        // );
+
         USDC.transferFrom(msg.sender, address(this), totalPrice);
         bids[_tokenId].push(Bid(msg.sender, _price));
+        emit BidCreated(_tokenId, msg.sender, _price);
     }
 
     function acceptBid(
@@ -141,14 +148,15 @@ contract Marketplace is Initializable, IMarketplace {
 
         nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
 
+        emit BidAccepted(_tokenId, bid.buyer, msg.sender, price);
         delete bids[_tokenId][_offerId];
     }
 
     function cancelBid(uint256 _tokenId, uint256 _offerId) external {
-        require(
-            bids[_tokenId][_offerId].buyer == msg.sender,
-            "You can't cancel not your bid"
-        );
+        Bid storage bid = bids[_tokenId][_offerId];
+        require(bid.buyer == msg.sender, "You can't cancel not your bid");
+
+        emit BidCanceled(_tokenId, msg.sender, bid.price);
         delete bids[_tokenId][_offerId];
     }
 

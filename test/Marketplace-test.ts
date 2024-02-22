@@ -335,6 +335,9 @@ describe("List item", function () {
 
       expect(bidFromContract.buyer).to.equal(user.address);
       expect(bidFromContract.price).to.equal(ethers.utils.parseUnits("1", 6));
+      expect(createBidTx)
+        .to.emit(marketplace, "BidCreated")
+        .withArgs(0, user.address, ethers.utils.parseUnits("1", 6));
     });
 
     it("Should revert if NFT doesn't exist", async () => {
@@ -402,6 +405,14 @@ describe("List item", function () {
       const bidArray = await marketplace.bids(0, 0);
       const onSale = await bidArray.onSale;
       expect((await marketplace.bids(0, 0)).onSale).to.be.reverted;
+      expect(buyTx)
+        .to.emit(marketplace, "BidAccepted")
+        .withArgs(
+          0,
+          user.address,
+          deployer.address,
+          ethers.utils.parseUnits("1", 6)
+        );
     });
 
     it("Should revert if non-owner trying to accept bid", async () => {
@@ -463,6 +474,9 @@ describe("List item", function () {
       const cancelBid = await marketplace.connect(user).cancelBid(0, 0);
 
       expect((await marketplace.bids(0, 0)).onSale).to.be.reverted;
+      expect(cancelBid)
+        .to.emit(marketplace, "BidCanceled")
+        .withArgs(0, user.address, ethers.utils.parseUnits("1", 6));
     });
 
     it("Should revert if non-owner of bid try to cancel it", async () => {
