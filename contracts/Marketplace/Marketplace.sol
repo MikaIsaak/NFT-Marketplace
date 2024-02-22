@@ -78,7 +78,7 @@ contract Marketplace is Initializable, IMarketplace {
         require(item.onSale, "Item isn't on sale");
         require(msg.sender != item.seller, "You can't buy NFT from yourself");
 
-        uint256 totalPrice = getTotalPrice(_tokenId);
+        uint256 totalPrice = getTotalPrice(item.price);
         require(
             USDC.balanceOf(msg.sender) >= totalPrice,
             "Insufficient funds for buying NFT"
@@ -103,9 +103,23 @@ contract Marketplace is Initializable, IMarketplace {
     }
 
     function getTotalPrice(
-        uint256 _tokenId
+        uint256 _price
     ) public view returns (uint256 _totalPrice) {
-        return ((items[_tokenId].price * (100 + feePercent)) / 100);
+        return ((_price * (100 + feePercent)) / 100);
+    }
+
+    function sellWithTransfer(
+        uint256 _tokenId,
+        address _buyer,
+        address _seller,
+        uint256 _price
+    ) internal {
+        USDC.safeTransferFrom(_buyer, _seller, _price);
+
+        uint fee = getTotalPrice(_price) - _price;
+        USDC.safeTransferFrom(_buyer, feeReceiver, fee);
+
+        nft.safeTransferFrom(msg.sender, _buyer, _tokenId);
     }
 
     // Bid interface
@@ -119,28 +133,17 @@ contract Marketplace is Initializable, IMarketplace {
         bids[_tokenId].push(Bid(msg.sender, _price));
     }
 
-    function acceptBid(uint256 _tokenId, uint256 _offerId) external {
+    function acceptBid(
+        uint256 _tokenId,
+        uint256 _offerId
+    ) external onlyNftOwner(msg.sender, _tokenId) {
         Bid storage bid = bids[_tokenId][_offerId];
-        require(
-            nft.ownerOf(_tokenId) == msg.sender,
-            "You aren't owner of the NFT you want to sell"
-        );
-        require(bid.price != 0, "This bid doesn't exist");
-        require(nft.ownerOf(_tokenId) != address(0));
 
         if (items[_tokenId].onSale) {
             items[_tokenId].onSale = false;
         }
 
-        USDC.safeTransferFrom(bid.buyer, msg.sender, bid.price);
-
-        USDC.safeTransferFrom(
-            bid.buyer,
-            feeReceiver,
-            getTotalPrice(bid.price) - bid.price
-        );
-
-        nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
+        sellWithTransfer(_tokenId, bid.buyer, msg.sender, bid.price);
 
         delete bids[_tokenId][_offerId];
     }

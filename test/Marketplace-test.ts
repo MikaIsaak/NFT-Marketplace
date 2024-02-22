@@ -360,7 +360,6 @@ describe("List item", function () {
       const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
         deploy
       );
-      const price = ethers.utils.parseUnits("1", 6);
 
       const mintTx = await marketplace.connect(deployer).mint();
 
@@ -369,18 +368,68 @@ describe("List item", function () {
         true
       );
 
-      const allowance = ethers.utils.parseUnits("10", 6);
+      const allowance = ethers.utils.parseUnits("2", 6);
       const UsdcApproveTx = await USDC.connect(user).approve(
         marketplace.address,
         allowance
       );
 
-      expect(
-        await marketplace.connect(deployer).acceptBid(0, 0)
-      ).to.changeTokenBalances(NFT, [deployer, user], [-1, 1]);
-      // expect(
-      //   await marketplace.connect(user).createBid(0, price)
-      // ).to.changeTokenBalances(USDC, [deployer, user], [5, -5]);
+      const bidPrice = ethers.utils.parseUnits("1", 6);
+      const bidTx = await marketplace.connect(user).createBid(0, bidPrice);
+
+      const buyTx = await marketplace.connect(deployer).acceptBid(0, 0);
+
+      expect(buyTx).to.changeTokenBalances(NFT, [deployer, user], [-1, 1]);
+
+      expect(buyTx).to.changeTokenBalance(
+        USDC,
+        [deployer, user],
+        [bidPrice, -bidPrice]
+      );
+    });
+
+    it("Should revert if bid doesn't exist", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      await expect(
+        marketplace.connect(deployer).acceptBid(0, 1)
+      ).to.be.revertedWithPanic(0x32);
+    });
+
+    it("Should change listed item status onSale to false", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
+
+      const allowance = ethers.utils.parseUnits("2", 6);
+      const UsdcApproveTx = await USDC.connect(user).approve(
+        marketplace.address,
+        allowance
+      );
+
+      const listTx = await marketplace
+        .connect(deployer)
+        .listItem(0, ethers.utils.parseUnits("1", 6));
+
+      const bidPrice = ethers.utils.parseUnits("1", 6);
+      const bidTx = await marketplace.connect(user).createBid(0, bidPrice);
+
+      const buyTx = await marketplace.connect(deployer).acceptBid(0, 0);
+
+      /// WHY?
+      const mappingElement = await marketplace.items(0);
+
+      expect(mappingElement.onSale).to.eq(false);
     });
   });
 });
