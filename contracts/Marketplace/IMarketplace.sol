@@ -12,7 +12,7 @@ interface IMarketplace {
 
     function getTotalPrice(uint256 _itemID) external view returns (uint256);
 
-    event Offered(uint256 itemId, uint256 price, address indexed seller);
+    event Offered(uint256 price, address indexed seller);
 
     event Bought(uint256 itemId, uint256 price, address indexed buyer);
 

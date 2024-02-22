@@ -8,15 +8,12 @@ import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
 
-import "hardhat/console.sol";
-
 contract Marketplace is Initializable, IMarketplace {
     using SafeERC20 for IERC20;
 
     MarcChagall public nft;
     address private feeReceiver;
     uint8 public feePercent;
-    uint256 private itemCount;
     IERC20 public USDC;
     mapping(uint256 => Item) public items;
     mapping(uint256 => Bid[]) public bids;
@@ -69,7 +66,7 @@ contract Marketplace is Initializable, IMarketplace {
 
         items[_tokenId] = Item(_price, payable(msg.sender), true);
 
-        emit Offered(itemCount, _price, msg.sender);
+        emit Offered(_price, msg.sender);
     }
 
     function purchaseItem(uint256 _tokenId) external {
@@ -107,20 +104,6 @@ contract Marketplace is Initializable, IMarketplace {
         return ((_price * (100 + feePercent)) / 100);
     }
 
-    // function sellWithTransfer(
-    //     uint256 _tokenId,
-    //     address _buyer,
-    //     address _seller,
-    //     uint256 _price
-    // ) internal {
-    //     USDC.safeTransferFrom(_buyer, _seller, _price);
-
-    //     uint fee = getTotalPrice(_price) - _price;
-    //     USDC.safeTransferFrom(_buyer, feeReceiver, fee);
-
-    //     nft.safeTransferFrom(msg.sender, _buyer, _tokenId);
-    // }
-
     // Bid interface
     function createBid(uint256 _tokenId, uint256 _price) external {
         require(
@@ -136,8 +119,6 @@ contract Marketplace is Initializable, IMarketplace {
         uint256 totalPrice = getTotalPrice(_price);
         USDC.transferFrom(msg.sender, address(this), totalPrice);
         bids[_tokenId].push(Bid(msg.sender, _price));
-
-        //emit
     }
 
     function acceptBid(
@@ -150,9 +131,12 @@ contract Marketplace is Initializable, IMarketplace {
             items[_tokenId].onSale = false;
         }
 
-        USDC.safeTransfer(msg.sender, bid.price);
-
         uint fee = getTotalPrice(bid.price) - bid.price;
+        uint price = bid.price;
+        bid.price = 0;
+
+        USDC.safeTransfer(msg.sender, price);
+
         USDC.safeTransfer(feeReceiver, fee);
 
         nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
