@@ -10,5 +10,5 @@ node_modules
 /typechain-types
 
 /coverage
-!coverage/ERC721
-!coverage/Marketplace
+!/coverage/ERC721
+!/coverage/Marketplace
