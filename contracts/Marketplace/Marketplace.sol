@@ -117,7 +117,6 @@ contract Marketplace is Initializable, IMarketplace {
         );
 
         uint256 totalPrice = getTotalPrice(_price);
-
         require(
             USDC.balanceOf(msg.sender) >= totalPrice,
             "You don't have enough funds for bid"

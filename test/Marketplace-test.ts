@@ -379,6 +379,19 @@ describe("List item", function () {
           .createBid(0, ethers.utils.parseUnits("1", 6))
       ).to.be.revertedWith("Owner of  NFT can't make bid on his NFT");
     });
+
+    it("Should revert if USDC balance of buyer isn't enough", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      await expect(
+        marketplace
+          .connect(user)
+          .createBid(0, ethers.utils.parseUnits("100000", 6))
+      ).to.be.revertedWith("You don't have enough funds for bid");
+    });
   });
 
   describe("acceptBid", function () {
