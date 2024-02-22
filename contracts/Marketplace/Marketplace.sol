@@ -118,10 +118,10 @@ contract Marketplace is Initializable, IMarketplace {
 
         uint256 totalPrice = getTotalPrice(_price);
 
-        // require(
-        //     USDC.balanceOf(msg.sender) >= totalPrice,
-        //     "You don't have enough funds for bid"
-        // );
+        require(
+            USDC.balanceOf(msg.sender) >= totalPrice,
+            "You don't have enough funds for bid"
+        );
 
         USDC.transferFrom(msg.sender, address(this), totalPrice);
         bids[_tokenId].push(Bid(msg.sender, _price));

@@ -1,5 +1,5 @@
 TN:
-SF:/home/user/projects/NFTMarketplace/contracts/ERC721/MarcChagall.sol
+SF:/home/mikich/NFTMarketplace/contracts/ERC721/MarcChagall.sol
 FN:12,constructor
 FN:16,initialize
 FN:21,_baseURI
@@ -24,7 +24,7 @@ BRF:2
 BRH:2
 end_of_record
 TN:
-SF:/home/user/projects/NFTMarketplace/contracts/Marketplace/IMarketplace.sol
+SF:/home/mikich/NFTMarketplace/contracts/Marketplace/IMarketplace.sol
 FNF:0
 FNH:0
 LF:0
@@ -33,7 +33,7 @@ BRF:0
 BRH:0
 end_of_record
 TN:
-SF:/home/user/projects/NFTMarketplace/contracts/Marketplace/Marketplace.sol
+SF:/home/mikich/NFTMarketplace/contracts/Marketplace/Marketplace.sol
 FN:21,onlyNftOwner
 FN:30,constructor
 FN:38,initialize
