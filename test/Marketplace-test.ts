@@ -1,5 +1,5 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
-import { assert, expect } from "chai";
+import { assert, expect, use } from "chai";
 import { ethers, network, upgrades } from "hardhat";
 import { Marketplace } from "../typechain-types";
 import { MarcChagall } from "../typechain-types";
@@ -42,14 +42,32 @@ async function deploy() {
     { initializer: "initialize" }
   );
   await marketplace.deployed();
-  console.log("Proxy address is ", marketplace.address);
-  console.log(
-    "Admin proxy contract address is ",
-    await upgrades.erc1967.getAdminAddress(marketplace.address)
+  // console.log("Proxy address is ", marketplace.address);
+  // console.log(
+  //   "Admin proxy contract address is ",
+  //   await upgrades.erc1967.getAdminAddress(marketplace.address)
+  // );
+  // console.log(
+  //   "Implementation address is ",
+  //   await upgrades.erc1967.getImplementationAddress(marketplace.address)
+  // );
+
+  const DeployerNftApproveTx = await NFT.connect(deployer).setApprovalForAll(
+    marketplace.address,
+    true
   );
-  console.log(
-    "Implementation address is ",
-    await upgrades.erc1967.getImplementationAddress(marketplace.address)
+  const UserNftApproveTx = await NFT.connect(user).setApprovalForAll(
+    marketplace.address,
+    true
+  );
+
+  const DeployerUsdcApprove = await USDC.connect(deployer).approve(
+    marketplace.address,
+    ethers.utils.parseUnits("100", 6)
+  );
+  const UserUsdcApprove = await USDC.connect(user).approve(
+    marketplace.address,
+    ethers.utils.parseUnits("100", 6)
   );
 
   return { deployer, user, USDC, NFT, marketplace };
@@ -85,6 +103,22 @@ describe("Constructor", async () => {
       )
     ).to.be.revertedWith("It's unsual big comission, please, change it");
   });
+
+  it("Should revert if trying to call functuion initialize", async () => {
+    const { deployer, USDC, NFT } = await loadFixture(deploy);
+
+    const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
+    const marketplace = await upgrades.deployProxy(
+      MarketplaceFactory,
+      [10, NFT.address, USDC.address],
+      { initializer: "initialize" }
+    );
+    await marketplace.deployed();
+
+    await expect(
+      marketplace.connect(deployer).initialize(10, NFT.address, USDC.address)
+    ).to.be.revertedWithCustomError(marketplace, "InvalidInitialization");
+  });
 });
 
 describe("Mint", function () {
@@ -101,25 +135,31 @@ describe("List item", function () {
   it("Should list item if approved for all", async () => {
     const { deployer, marketplace, NFT } = await loadFixture(deploy);
 
-    const mintTx = await marketplace.mint();
+    const mintTx = await marketplace.connect(deployer).mint();
 
-    const approveTx = await NFT.setApprovalForAll(marketplace.address, true);
-
-    const listTx = await marketplace.listItem(0, 5);
+    const listTx = await marketplace.connect(deployer).listItem(0, 5);
 
     expect(listTx)
       .to.emit(marketplace, "Offered")
       .withArgs(1, 5, deployer.address);
   });
 
-  it("Should list item if approved for all", async () => {
+  it("Should list item if approved", async () => {
     const { deployer, marketplace, NFT } = await loadFixture(deploy);
 
-    const mintTx = await marketplace.mint();
+    const mintTx = await marketplace.connect(deployer).mint();
 
-    const approveTx = await NFT.approve(marketplace.address, 0);
+    const cancelApproveForAll = await NFT.connect(deployer).setApprovalForAll(
+      marketplace.address,
+      false
+    );
 
-    const listTx = await marketplace.listItem(0, 5);
+    const simpleApprove = await NFT.connect(deployer).approve(
+      marketplace.address,
+      0
+    );
+
+    const listTx = await marketplace.connect(deployer).listItem(0, 5);
 
     expect(listTx)
       .to.emit(marketplace, "Offered")
@@ -140,6 +180,11 @@ describe("List item", function () {
     const { deployer, marketplace, NFT } = await loadFixture(deploy);
 
     const mintTx = await marketplace.connect(deployer).mint();
+
+    const DeployerNftApproveTx = await NFT.connect(deployer).setApprovalForAll(
+      marketplace.address,
+      false
+    );
 
     await expect(
       marketplace.connect(deployer).listItem(0, 1)
@@ -166,17 +211,7 @@ describe("List item", function () {
 
       const mintTx = await marketplace.connect(deployer).mint();
 
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
-
       const listTx = await marketplace.connect(deployer).listItem(0, price);
-
-      const UsdcApproveTx = await USDC.connect(user).approve(
-        marketplace.address,
-        allowance
-      );
 
       const buyTx = await marketplace.connect(user).purchaseItem(0);
 
@@ -204,47 +239,37 @@ describe("List item", function () {
 
       const mintTx = await marketplace.connect(deployer).mint();
 
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
-
       const listTx = await marketplace.connect(deployer).listItem(0, 5);
-
-      const UsdcApproveTx = await USDC.connect(deployer).approve(
-        marketplace.address,
-        10000
-      );
 
       await expect(
         marketplace.connect(deployer).purchaseItem(0)
       ).to.be.revertedWith("You can't buy NFT from yourself");
     });
 
-    // it("Should revert if buyer USDC balance isn't enough for buying NFT", async () => {
-    //   const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-    //     deploy
-    //   );
-    //   const price = ethers.utils.parseUnits("100", 6);
+    it("Should revert if buyer USDC balance isn't enough for buying NFT", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      const price = ethers.utils.parseUnits("100", 6);
 
-    //   const mintTx = await marketplace.connect(deployer).mint();
+      const mintTx = await marketplace.connect(deployer).mint();
 
-    //   const approveTx = await NFT.connect(deployer).setApprovalForAll(
-    //     marketplace.address,
-    //     true
-    //   );
+      const approveTx = await NFT.connect(deployer).setApprovalForAll(
+        marketplace.address,
+        true
+      );
 
-    //   const listTx = await marketplace.connect(deployer).listItem(0, price);
+      const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-    //   const UsdcApproveTx = await USDC.connect(user).approve(
-    //     marketplace.address,
-    //     price
-    //   );
+      const UsdcApproveTx = await USDC.connect(user).approve(
+        marketplace.address,
+        price
+      );
 
-    //   await expect(
-    //     marketplace.connect(user).purchaseItem(0)
-    //   ).to.be.revertedWith("Insufficient funds for buying NFT");
-    // });
+      await expect(
+        marketplace.connect(user).purchaseItem(0)
+      ).to.be.revertedWith("Insufficient funds for buying NFT");
+    });
   });
 
   describe("removeListing", function () {
@@ -253,11 +278,6 @@ describe("List item", function () {
       const price = ethers.utils.parseUnits("1", 6);
 
       const mintTx = await marketplace.connect(deployer).mint();
-
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
 
       const listTx = await marketplace.connect(deployer).listItem(0, price);
 
@@ -276,11 +296,6 @@ describe("List item", function () {
 
       const mintTx = await marketplace.connect(deployer).mint();
 
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
-
       const listTx = await marketplace.connect(deployer).listItem(0, price);
 
       await expect(
@@ -295,11 +310,6 @@ describe("List item", function () {
       const price = ethers.utils.parseUnits("1", 6);
 
       const mintTx = await marketplace.connect(deployer).mint();
-
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
 
       const listTx = await marketplace.connect(deployer).listItem(0, price);
 
@@ -319,11 +329,11 @@ describe("List item", function () {
 
       const mintTx = await marketplace.connect(deployer).mint();
       const createBidTx = await marketplace
-        .connect(deployer)
+        .connect(user)
         .createBid(0, ethers.utils.parseUnits("1", 6));
-      const bidFromContract = await marketplace.connect(deployer).bids(0, 0);
+      const bidFromContract = await marketplace.connect(user).bids(0, 0);
 
-      expect(bidFromContract.buyer).to.equal(deployer.address);
+      expect(bidFromContract.buyer).to.equal(user.address);
       expect(bidFromContract.price).to.equal(ethers.utils.parseUnits("1", 6));
     });
 
@@ -353,6 +363,19 @@ describe("List item", function () {
           .createBid(0, ethers.utils.parseUnits("0", 6))
       ).to.be.revertedWith("Price shouldn't be equal zero");
     });
+
+    it("Should revert if NFT owner trying to create bid on his NFT", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      await expect(
+        marketplace
+          .connect(deployer)
+          .createBid(0, ethers.utils.parseUnits("1", 6))
+      ).to.be.revertedWith("Owner of  NFT can't make bid on his NFT");
+    });
   });
 
   describe("acceptBid", function () {
@@ -362,17 +385,6 @@ describe("List item", function () {
       );
 
       const mintTx = await marketplace.connect(deployer).mint();
-
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
-
-      const allowance = ethers.utils.parseUnits("2", 6);
-      const UsdcApproveTx = await USDC.connect(user).approve(
-        marketplace.address,
-        allowance
-      );
 
       const bidPrice = ethers.utils.parseUnits("1", 6);
       const bidTx = await marketplace.connect(user).createBid(0, bidPrice);
@@ -386,6 +398,25 @@ describe("List item", function () {
         [deployer, user],
         [bidPrice, -bidPrice]
       );
+
+      const bidArray = await marketplace.bids(0, 0);
+      const onSale = await bidArray.onSale;
+      expect((await marketplace.bids(0, 0)).onSale).to.be.reverted;
+    });
+
+    it("Should revert if non-owner trying to accept bid", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+
+      const bidPrice = ethers.utils.parseUnits("1", 6);
+      const bidTx = await marketplace.connect(user).createBid(0, bidPrice);
+
+      await expect(
+        marketplace.connect(user).acceptBid(0, 0)
+      ).to.be.revertedWith("You aren't owner of the token");
     });
 
     it("Should revert if bid doesn't exist", async () => {
@@ -406,17 +437,6 @@ describe("List item", function () {
 
       const mintTx = await marketplace.connect(deployer).mint();
 
-      const approveTx = await NFT.connect(deployer).setApprovalForAll(
-        marketplace.address,
-        true
-      );
-
-      const allowance = ethers.utils.parseUnits("2", 6);
-      const UsdcApproveTx = await USDC.connect(user).approve(
-        marketplace.address,
-        allowance
-      );
-
       const listTx = await marketplace
         .connect(deployer)
         .listItem(0, ethers.utils.parseUnits("1", 6));
@@ -426,10 +446,65 @@ describe("List item", function () {
 
       const buyTx = await marketplace.connect(deployer).acceptBid(0, 0);
 
-      /// WHY?
-      const mappingElement = await marketplace.items(0);
+      expect((await marketplace.items(0)).onSale).to.eq(false);
+    });
+  });
 
-      expect(mappingElement.onSale).to.eq(false);
+  describe("cancelBid", function () {
+    it("Should cancel bid", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      const createBidTx = await marketplace
+        .connect(user)
+        .createBid(0, ethers.utils.parseUnits("1", 6));
+      const cancelBid = await marketplace.connect(user).cancelBid(0, 0);
+
+      expect((await marketplace.bids(0, 0)).onSale).to.be.reverted;
+    });
+
+    it("Should revert if non-owner of bid try to cancel it", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      const createBidTx = await marketplace
+        .connect(user)
+        .createBid(0, ethers.utils.parseUnits("1", 6));
+
+      await expect(
+        marketplace.connect(deployer).cancelBid(0, 0)
+      ).to.be.revertedWith("You can't cancel not your bid");
+    });
+  });
+
+  describe("getBids", function () {
+    it("Should return bid with specified tokenId", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+
+      const mintTx = await marketplace.connect(deployer).mint();
+      const createBidTx = await marketplace
+        .connect(user)
+        .createBid(0, ethers.utils.parseUnits("1", 6));
+      const bid = await marketplace.bids(0, 0);
+      const allBidsAtIndex0 = await marketplace.getBids(0);
+
+      // Compare the individual properties of `bid` and the return value of `marketplace.getBids(0)`
+      expect(allBidsAtIndex0[0].buyer).to.equal(bid.buyer);
+      expect(allBidsAtIndex0[0].price).to.equal(bid.price);
+      expect(allBidsAtIndex0[0].onSale).to.equal(bid.onSale);
+    });
+
+    it("Should return emptiness if there are no actual bids", async () => {
+      const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
+        deploy
+      );
+      expect(await marketplace.getBids(0)).to.deep.eq([]);
     });
   });
 });

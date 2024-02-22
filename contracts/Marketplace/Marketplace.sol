@@ -20,7 +20,6 @@ contract Marketplace is Initializable, IMarketplace {
     IERC20 public USDC;
     mapping(uint256 => Item) public items;
     mapping(uint256 => Bid[]) public bids;
-    mapping(uint256 => uint256) public bidsCounter;
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
         require(
@@ -108,19 +107,19 @@ contract Marketplace is Initializable, IMarketplace {
         return ((_price * (100 + feePercent)) / 100);
     }
 
-    function sellWithTransfer(
-        uint256 _tokenId,
-        address _buyer,
-        address _seller,
-        uint256 _price
-    ) internal {
-        USDC.safeTransferFrom(_buyer, _seller, _price);
+    // function sellWithTransfer(
+    //     uint256 _tokenId,
+    //     address _buyer,
+    //     address _seller,
+    //     uint256 _price
+    // ) internal {
+    //     USDC.safeTransferFrom(_buyer, _seller, _price);
 
-        uint fee = getTotalPrice(_price) - _price;
-        USDC.safeTransferFrom(_buyer, feeReceiver, fee);
+    //     uint fee = getTotalPrice(_price) - _price;
+    //     USDC.safeTransferFrom(_buyer, feeReceiver, fee);
 
-        nft.safeTransferFrom(msg.sender, _buyer, _tokenId);
-    }
+    //     nft.safeTransferFrom(msg.sender, _buyer, _tokenId);
+    // }
 
     // Bid interface
     function createBid(uint256 _tokenId, uint256 _price) external {
@@ -129,8 +128,16 @@ contract Marketplace is Initializable, IMarketplace {
             "Nft with this item doesn't exist"
         );
         require(_price != 0, "Price shouldn't be equal zero");
+        require(
+            nft.ownerOf(_tokenId) != msg.sender,
+            "Owner of  NFT can't make bid on his NFT"
+        );
 
+        uint256 totalPrice = getTotalPrice(_price);
+        USDC.transferFrom(msg.sender, address(this), totalPrice);
         bids[_tokenId].push(Bid(msg.sender, _price));
+
+        //emit
     }
 
     function acceptBid(
@@ -143,7 +150,12 @@ contract Marketplace is Initializable, IMarketplace {
             items[_tokenId].onSale = false;
         }
 
-        sellWithTransfer(_tokenId, bid.buyer, msg.sender, bid.price);
+        USDC.safeTransfer(msg.sender, bid.price);
+
+        uint fee = getTotalPrice(bid.price) - bid.price;
+        USDC.safeTransfer(feeReceiver, fee);
+
+        nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
 
         delete bids[_tokenId][_offerId];
     }

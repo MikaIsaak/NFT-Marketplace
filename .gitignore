@@ -8,3 +8,7 @@ node_modules
 # TypeChain files
 /typechain
 /typechain-types
+
+/coverage
+!/coverage/ERC721
+!/coverage/Marketplace
