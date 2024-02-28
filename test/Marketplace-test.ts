@@ -490,6 +490,11 @@ describe("List item", function () {
       expect(cancelBid)
         .to.emit(marketplace, "BidCanceled")
         .withArgs(0, user.address, ethers.utils.parseUnits("1", 6));
+      expect(cancelBid).to.changeTokenBalances(
+        USDC,
+        [marketplace, user],
+        [-ethers.utils.parseUnits("1", 6), +ethers.utils.parseUnits("1", 6)]
+      );
     });
 
     it("Should revert if non-owner of bid try to cancel it", async () => {

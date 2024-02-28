@@ -137,8 +137,8 @@ contract Marketplace is Initializable, IMarketplace {
             items[_tokenId].onSale = false;
         }
 
-        uint fee = getTotalPrice(bid.price) - bid.price;
-        uint price = bid.price;
+        uint256 fee = getTotalPrice(bid.price) - bid.price;
+        uint256 price = bid.price;
         bid.price = 0;
 
         USDC.safeTransfer(msg.sender, price);
@@ -154,6 +154,9 @@ contract Marketplace is Initializable, IMarketplace {
     function cancelBid(uint256 _tokenId, uint256 _offerId) external {
         Bid storage bid = bids[_tokenId][_offerId];
         require(bid.buyer == msg.sender, "You can't cancel not your bid");
+
+        uint256 refundAmount = getTotalPrice(bid.price);
+        USDC.safeTransfer(bid.buyer, refundAmount);
 
         emit BidCanceled(_tokenId, msg.sender, bid.price);
         delete bids[_tokenId][_offerId];
