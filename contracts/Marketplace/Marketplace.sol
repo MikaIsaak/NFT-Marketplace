@@ -144,8 +144,6 @@ contract Marketplace is Initializable, IMarketplace {
         USDC.safeTransfer(msg.sender, price);
 
         USDC.safeTransfer(feeReceiver, fee);
-                USDC.safeTransfer(feeReceiver, fee);
-
 
         nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
 
