@@ -6,9 +6,12 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-contract Marketplace is Initializable, IMarketplace {
+contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     using SafeERC20 for IERC20;
 
     MarcChagall public nft;
@@ -17,6 +20,13 @@ contract Marketplace is Initializable, IMarketplace {
     IERC20 public USDC;
     mapping(uint256 => Item) public items;
     mapping(uint256 => Bid[]) public bids;
+    mapping(address => uint256) private _nonces;
+    mapping(bytes32 => bool) hashesOfTX;
+
+    bytes32 private constant _PERMIT_TYPEHASH =
+        keccak256(
+            "Bid(address buyer,address seller,uint256 price, uint256 tokenId, uint256 nonce,uint256 deadline)"
+        );
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
         require(
@@ -27,6 +37,7 @@ contract Marketplace is Initializable, IMarketplace {
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
+    // QUESTION
     constructor() {
         _disableInitializers();
     }
@@ -45,6 +56,7 @@ contract Marketplace is Initializable, IMarketplace {
         feePercent = _feePercent;
         nft = MarcChagall(_nftAddress);
         USDC = IERC20(_USDC);
+        __EIP712_init("Marketplace", "1");
     }
 
     receive() external payable {}
@@ -104,65 +116,48 @@ contract Marketplace is Initializable, IMarketplace {
         return ((_price * (100 + feePercent)) / 100);
     }
 
-    // Bid interface
-    function createBid(uint256 _tokenId, uint256 _price) external {
-        require(
-            nft.ownerOf(_tokenId) != address(0),
-            "Nft with this token Id doesn't exist"
-        );
-        require(_price != 0, "Price shouldn't be equal zero");
-        require(
-            nft.ownerOf(_tokenId) != msg.sender,
-            "Owner of  NFT can't make bid on his NFT"
-        );
-
-        uint256 totalPrice = getTotalPrice(_price);
-        require(
-            USDC.balanceOf(msg.sender) >= totalPrice,
-            "You don't have enough funds for bid"
-        );
-
-        USDC.transferFrom(msg.sender, address(this), totalPrice);
-        bids[_tokenId].push(Bid(msg.sender, _price));
-        emit BidCreated(_tokenId, msg.sender, _price);
-    }
-
     function acceptBid(
-        uint256 _tokenId,
-        uint256 _offerId
-    ) external onlyNftOwner(msg.sender, _tokenId) {
-        Bid storage bid = bids[_tokenId][_offerId];
+        address buyer,
+        address seller,
+        uint256 tokenId,
+        uint256 price,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external virtual {
+        require(block.timestamp <= deadline, "Expired bid");
 
-        if (items[_tokenId].onSale) {
-            items[_tokenId].onSale = false;
-        }
+        bytes32 structHash = keccak256(
+            abi.encode(
+                _PERMIT_TYPEHASH,
+                buyer,
+                seller,
+                tokenId,
+                price,
+                _nonces[buyer],
+                deadline
+            )
+        );
 
-        uint256 fee = getTotalPrice(bid.price) - bid.price;
-        uint256 price = bid.price;
-        bid.price = 0;
+        bytes32 hash = _hashTypedDataV4(structHash);
 
-        USDC.safeTransfer(msg.sender, price);
+        address signer = ECDSA.recover(hash, v, r, s);
 
-        USDC.safeTransfer(feeReceiver, fee);
+        require(signer == buyer, "not an owner");
+        _nonces[buyer]++;
 
-        nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
-
-        emit BidAccepted(_tokenId, bid.buyer, msg.sender, price);
-        delete bids[_tokenId][_offerId];
+        uint256 fee = getTotalPrice(price) - price;
+        USDC.transferFrom(buyer, seller, price);
+        USDC.transferFrom(buyer, feeReceiver, fee);
+        nft.transferFrom(seller, buyer, tokenId);
     }
 
-    function cancelBid(uint256 _tokenId, uint256 _offerId) external {
-        Bid storage bid = bids[_tokenId][_offerId];
-        require(bid.buyer == msg.sender, "You can't cancel not your bid");
-
-        uint256 refundAmount = getTotalPrice(bid.price);
-        USDC.safeTransfer(bid.buyer, refundAmount);
-
-        emit BidCanceled(_tokenId, msg.sender, bid.price);
-        delete bids[_tokenId][_offerId];
+    function nonces(address buyer) external view returns (uint256) {
+        return _nonces[buyer];
     }
 
-    function getBids(uint256 _tokenId) external view returns (Bid[] memory) {
-        return bids[_tokenId];
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _domainSeparatorV4();
     }
 }
