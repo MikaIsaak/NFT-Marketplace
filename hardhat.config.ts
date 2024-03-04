@@ -13,7 +13,7 @@ const config: HardhatUserConfig = {
   solidity: "0.8.20",
 };
 
-const { API_URL, PRIVATE_KEY } = process.env;
+const { API_URL, PRIVATE_KEY, USER_PRIVATE_KEY } = process.env;
 
 module.exports = {
   solidity: {
@@ -37,8 +37,18 @@ module.exports = {
       gas: 1800000,
       forking: {
         url: API_URL,
-        account: [`0x${PRIVATE_KEY}`],
       },
+      accounts: [
+        {
+          privateKey: PRIVATE_KEY,
+          balance: "1000000000000000000000",
+        },
+        {
+          privateKey: USER_PRIVATE_KEY,
+          balance: "1000000000000000000000",
+        },
+      ],
+      chainId: 11155111,
     },
     sepolia: {
       url: API_URL,

@@ -6,17 +6,28 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract Marketplace is Initializable, IMarketplace {
+import "hardhat/console.sol";
+
+contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     using SafeERC20 for IERC20;
+    using ECDSA for bytes32;
 
     MarcChagall public nft;
     address private feeReceiver;
     uint8 public feePercent;
     IERC20 public USDC;
     mapping(uint256 => Item) public items;
-    mapping(uint256 => Bid[]) public bids;
+    mapping(address => uint256) private _nonces;
+    mapping(bytes32 => bool) hashesOfTX;
+
+    bytes32 internal constant WHITELABEL_TYPE_HASH =
+        keccak256(
+            "AcceptBid(address buyer,uint256 tokenId,uint256 price,uint256 deadline)"
+        );
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
         require(
@@ -45,6 +56,7 @@ contract Marketplace is Initializable, IMarketplace {
         feePercent = _feePercent;
         nft = MarcChagall(_nftAddress);
         USDC = IERC20(_USDC);
+        __EIP712_init("Marketplace", "1");
     }
 
     receive() external payable {}
@@ -104,65 +116,87 @@ contract Marketplace is Initializable, IMarketplace {
         return ((_price * (100 + feePercent)) / 100);
     }
 
-    // Bid interface
-    function createBid(uint256 _tokenId, uint256 _price) external {
-        require(
-            nft.ownerOf(_tokenId) != address(0),
-            "Nft with this token Id doesn't exist"
-        );
-        require(_price != 0, "Price shouldn't be equal zero");
-        require(
-            nft.ownerOf(_tokenId) != msg.sender,
-            "Owner of  NFT can't make bid on his NFT"
-        );
+    //EIP712 PART
 
-        uint256 totalPrice = getTotalPrice(_price);
-        require(
-            USDC.balanceOf(msg.sender) >= totalPrice,
-            "You don't have enough funds for bid"
-        );
+    // struct BidAccept {
+    //     address buyer;
+    //     uint256 tokenId;
+    //     uint256 price;
+    //     uint256 deadline;
+    //     bytes signature;
+    // }
 
-        USDC.transferFrom(msg.sender, address(this), totalPrice);
-        bids[_tokenId].push(Bid(msg.sender, _price));
-        emit BidCreated(_tokenId, msg.sender, _price);
+    // function recover(
+    //     BidAccept calldata bidInfo
+    // ) public view returns (address signer) {
+    //     bytes32 digest = _hashTypedDataV4(
+    //         keccak256(
+    //             abi.encode(
+    //                 keccak256(
+    //                     "BidAccept(address buyer,uint256 tokenId,uint256 price,uint256 deadline)"
+    //                 ),
+    //                 bidInfo.buyer,
+    //                 bidInfo.tokenId,
+    //                 bidInfo.price,
+    //                 bidInfo.deadline
+    //             )
+    //         )
+    //     );
+    //     signer = ECDSA.recover(digest, bidInfo.signature);
+    //     console.log(signer);
+    //     return signer;
+    // }
+
+    function verifySignature(
+        address buyer,
+        uint256 tokenId,
+        uint256 price,
+        uint256 deadline,
+        bytes calldata signature
+    ) internal view returns (bool) {
+        address signer = _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    WHITELABEL_TYPE_HASH,
+                    buyer,
+                    tokenId,
+                    price,
+                    deadline
+                )
+            )
+        ).recover(signature);
+        return signer == buyer;
     }
 
     function acceptBid(
-        uint256 _tokenId,
-        uint256 _offerId
-    ) external onlyNftOwner(msg.sender, _tokenId) {
-        Bid storage bid = bids[_tokenId][_offerId];
+        address buyer,
+        uint256 tokenId,
+        uint256 price,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        require(deadline <= block.timestamp, "You are late");
+        require(
+            USDC.balanceOf(buyer) >= getTotalPrice(price),
+            "Not enough balance"
+        );
+        require(
+            verifySignature(buyer, tokenId, price, deadline, signature),
+            "Incorrect signature"
+        );
 
-        if (items[_tokenId].onSale) {
-            items[_tokenId].onSale = false;
+        if (items[tokenId].onSale) {
+            items[tokenId].onSale = false;
         }
 
-        uint256 fee = getTotalPrice(bid.price) - bid.price;
-        uint256 price = bid.price;
-        bid.price = 0;
+        uint256 fee = getTotalPrice(price) - price;
 
-        USDC.safeTransfer(msg.sender, price);
+        USDC.safeTransferFrom(buyer, msg.sender, price);
 
-        USDC.safeTransfer(feeReceiver, fee);
+        USDC.safeTransferFrom(buyer, feeReceiver, fee);
 
-        nft.safeTransferFrom(msg.sender, bid.buyer, _tokenId);
+        nft.safeTransferFrom(msg.sender, buyer, tokenId);
 
-        emit BidAccepted(_tokenId, bid.buyer, msg.sender, price);
-        delete bids[_tokenId][_offerId];
-    }
-
-    function cancelBid(uint256 _tokenId, uint256 _offerId) external {
-        Bid storage bid = bids[_tokenId][_offerId];
-        require(bid.buyer == msg.sender, "You can't cancel not your bid");
-
-        uint256 refundAmount = getTotalPrice(bid.price);
-        USDC.safeTransfer(bid.buyer, refundAmount);
-
-        emit BidCanceled(_tokenId, msg.sender, bid.price);
-        delete bids[_tokenId][_offerId];
-    }
-
-    function getBids(uint256 _tokenId) external view returns (Bid[] memory) {
-        return bids[_tokenId];
+        emit BidAccepted(tokenId, buyer, msg.sender, price);
     }
 }
