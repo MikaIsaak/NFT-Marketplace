@@ -9,7 +9,8 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+
+import "hardhat/console.sol";
 
 contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     using SafeERC20 for IERC20;
@@ -25,7 +26,7 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
 
     bytes32 private constant _PERMIT_TYPEHASH =
         keccak256(
-            "Bid(address buyer,address seller,uint256 price, uint256 tokenId, uint256 nonce,uint256 deadline)"
+            "Bid(address buyer,address seller,uint256 tokenId, uint256 price, uint256 nonce,uint256 deadline)"
         );
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
@@ -128,6 +129,7 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     ) external virtual {
         require(block.timestamp <= deadline, "Expired bid");
 
+        // Генерация хеша структуры
         bytes32 structHash = keccak256(
             abi.encode(
                 _PERMIT_TYPEHASH,
@@ -140,13 +142,21 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
             )
         );
 
+        // Получение ожидаемого хеша с использованием Typed Data V4
         bytes32 hash = _hashTypedDataV4(structHash);
 
+        // Получение адреса подписавшего с помощью ECDSA.recover
         address signer = ECDSA.recover(hash, v, r, s);
 
-        require(signer == buyer, "not an owner");
+        console.log(signer);
+
+        // Проверка, что подписавший это действительно покупатель
+        require(signer == buyer, "Signature does not match buyer");
+
+        // Увеличение nonce покупателя
         _nonces[buyer]++;
 
+        // Расчет и перевод комиссии и суммы за токен
         uint256 fee = getTotalPrice(price) - price;
         USDC.transferFrom(buyer, seller, price);
         USDC.transferFrom(buyer, feeReceiver, fee);

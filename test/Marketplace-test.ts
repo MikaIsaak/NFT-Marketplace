@@ -1,18 +1,14 @@
-import {
-  loadFixture,
-  time,
-  impersonateAccount,
-} from "@nomicfoundation/hardhat-network-helpers";
-import { assert, expect, use } from "chai";
-import { ethers, network, upgrades } from "hardhat";
-import { Marketplace } from "../typechain-types";
+import { expect } from "chai";
+import { ethers, upgrades } from "hardhat";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { Marketplace, Marketplace__factory } from "../typechain-types";
 import { MarcChagall } from "../typechain-types";
 import { token } from "../typechain-types/@openzeppelin/contracts";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 require("dotenv").config();
 
-interface BidAccept {
+interface BidMessage {
   buyer: string;
   seller: string;
   tokenId: number | string;
@@ -51,8 +47,8 @@ async function signBid(
   nonce: number,
   deadline: number,
   signer: SignerWithAddress
-): Promise<BidAccept & RSV> {
-  const message: BidAccept = {
+): Promise<BidMessage & RSV> {
+  const message: BidMessage = {
     buyer,
     seller,
     tokenId,
@@ -70,7 +66,7 @@ async function signBid(
 
   const typedData = createTypedData(message, domain);
 
-  const rawSignature = await signer._signTypedData(
+  const rawSignature = await signer.signTypedData(
     typedData.domain,
     typedData.types,
     typedData.message
@@ -81,50 +77,42 @@ async function signBid(
   return { ...sig, ...message };
 }
 
-function createTypedData(message: BidAccept, domain: Domain) {
+function createTypedData(message: BidMessage, domain: Domain) {
   return {
     types: {
-      BidAccept: [
+      Bid: [
         { name: "buyer", type: "address" },
         { name: "seller", type: "address" },
-        { name: "price", type: "uint256" },
         { name: "tokenId", type: "uint256" },
+        { name: "price", type: "uint256" },
         { name: "nonce", type: "uint256" },
         { name: "deadline", type: "uint256" },
       ],
     },
-    primaryType: "BidAccept",
+    primaryType: "Bid",
     domain,
     message,
   };
 }
 
 async function deploy() {
-  const deployer = await ethers.getImpersonatedSigner(
+  const deployer = await ethers.getSigner(
     "0xC05da40E0017A98444FCf8708E747227113c6619"
   );
 
-  const user = await ethers.getImpersonatedSigner(
+  const user = await ethers.getSigner(
     "0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe"
   );
-
-  // const deployerAddress = "0xC05da40E0017A98444FCf8708E747227113c6619";
-  // await impersonateAccount(deployerAddress);
-  // const deployer = await ethers.getSigner(deployerAddress);
-
-  // const userAddress = "0xB7D4D5D9b1EC80eD4De0A5D66f8C7f903A9a5AAe";
-  // await impersonateAccount(userAddress);
-  // const user = await ethers.getSigner(userAddress);
 
   const USDCAddress = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
   const USDCAbi = require("../abi.json");
   const USDC = new ethers.Contract(USDCAddress, USDCAbi, deployer);
 
   const nftFactory = await ethers.getContractFactory("MarcChagall");
-  const NFT = await upgrades.deployProxy(nftFactory, [deployer.address], {
+  const NFT = await upgrades.deployProxy(nftFactory, [await deployer.getAddress()], {
     initializer: "initialize",
   });
-  await NFT.deployed();
+  await NFT.waitForDeployment();
 
   const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
   const marketplace = await upgrades.deployProxy(
@@ -132,10 +120,10 @@ async function deploy() {
     [10, NFT.address, USDC.address],
     { initializer: "initialize" }
   );
-  await marketplace.deployed();
+  await marketplace.waitForDeployment();
 
   const DeployerNftApproveTx = await NFT.connect(deployer).setApprovalForAll(
-    marketplace.address,
+    marketplace.getAddress(),
     true
   );
   const UserNftApproveTx = await NFT.connect(user).setApprovalForAll(
@@ -165,7 +153,7 @@ describe("Constructor", async () => {
       [10, NFT.address, USDC.address],
       { initializer: "initialize" }
     );
-    await marketplace.deployed();
+    await marketplace.waitForDeployment();
 
     expect(await marketplace.feePercent()).to.be.equal(10);
     expect(await marketplace.USDC()).to.be.equal(
@@ -364,7 +352,7 @@ describe("removeListing", function () {
 
     const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-    const delistTX = await marketplace.connect(deployer).removeListing(0);
+    const delistTX = await marketplace.connect(deployer).removeListener(0);
 
     const struct = await marketplace.items(0);
 
@@ -381,7 +369,7 @@ describe("removeListing", function () {
 
     const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-    await expect(marketplace.connect(user).removeListing(1)).to.be.revertedWith(
+    await expect(marketplace.connect(user).removeListener(1)).to.be.revertedWith(
       "You aren't the seller"
     );
   });
@@ -396,10 +384,10 @@ describe("removeListing", function () {
 
     const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-    const delistTX = await marketplace.connect(deployer).removeListing(0);
+    const delistTX = await marketplace.connect(deployer).removeListener(0);
 
     await expect(
-      marketplace.connect(deployer).removeListing(0)
+      marketplace.connect(deployer).removeListener(0)
     ).to.be.revertedWith("This item isn't listed");
   });
 });
@@ -410,9 +398,9 @@ describe("acceptBid", function () {
 
     const mintTx = await marketplace.connect(deployer).mint();
 
-    const seller = deployer.address;
     const contractAddress = marketplace.address;
     const buyer = user.address;
+    const seller = deployer.address;
     const tokenId = 0;
     const price = 1;
     const nonce = 0;
@@ -436,7 +424,6 @@ describe("acceptBid", function () {
         seller,
         tokenId,
         price,
-        nonce,
         deadline,
         result.v,
         result.r,
