@@ -1,7 +1,7 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers";
 import { assert, expect } from "chai";
 import { ethers, upgrades, network } from "hardhat";
-import { MarcChagall, MarcChagall__factory} from "../typechain-types";
+import { MarcChagall, MarcChagall__factory } from "../typechain-types";
 
 async function deploy() {
   await network.provider.request({

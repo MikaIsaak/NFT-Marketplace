@@ -109,9 +109,13 @@ async function deploy() {
   const USDC = new ethers.Contract(USDCAddress, USDCAbi, deployer);
 
   const nftFactory = await ethers.getContractFactory("MarcChagall");
-  const NFT = await upgrades.deployProxy(nftFactory, [await deployer.getAddress()], {
-    initializer: "initialize",
-  });
+  const NFT = await upgrades.deployProxy(
+    nftFactory,
+    [await deployer.getAddress()],
+    {
+      initializer: "initialize",
+    }
+  );
   await NFT.waitForDeployment();
 
   const MarketplaceFactory = await ethers.getContractFactory("Marketplace");
@@ -274,9 +278,8 @@ describe("List item", function () {
 
 describe("purchaseItem", async () => {
   it("Should purchase Item", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("1", 6);
     const allowance = ethers.utils.parseUnits("10", 6);
 
@@ -294,9 +297,8 @@ describe("purchaseItem", async () => {
   });
 
   it("Should revert if Item isn't on sale", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
 
     expect(marketplace.purchaseItem(1)).to.be.revertedWith(
       "Item isn't on sale"
@@ -304,9 +306,8 @@ describe("purchaseItem", async () => {
   });
 
   it("Should revert if buyer is message sender", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
 
     const mintTx = await marketplace.connect(deployer).mint();
 
@@ -318,9 +319,8 @@ describe("purchaseItem", async () => {
   });
 
   it("Should revert if buyer USDC balance isn't enough for buying NFT", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("100", 6);
 
     const mintTx = await marketplace.connect(deployer).mint();
@@ -360,24 +360,22 @@ describe("removeListing", function () {
   });
 
   it("Should revert if non-owner trying to delist item", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("1", 6);
 
     const mintTx = await marketplace.connect(deployer).mint();
 
     const listTx = await marketplace.connect(deployer).listItem(0, price);
 
-    await expect(marketplace.connect(user).removeListener(1)).to.be.revertedWith(
-      "You aren't the seller"
-    );
+    await expect(
+      marketplace.connect(user).removeListener(1)
+    ).to.be.revertedWith("You aren't the seller");
   });
 
   it("Should revert if item isn't listed", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("1", 6);
 
     const mintTx = await marketplace.connect(deployer).mint();
