@@ -401,16 +401,18 @@ describe("acceptBid", function () {
 
     const mintTx = await marketplace.connect(deployer).mint();
 
+    const listTx = await marketplace.connect(deployer).listItem(0, 100);
+
     const signBidMessage = await signBid(
       marketplace.address,
       user.address,
       0,
       100,
-      1000000,
+      Math.floor(Date.now() / 1000) + 1000,
       user
     );
 
-    await marketplace
+    const tx = await marketplace
       .connect(deployer)
       .acceptBid(
         signBidMessage.buyer,
@@ -421,5 +423,140 @@ describe("acceptBid", function () {
         signBidMessage.r,
         signBidMessage.s
       );
+
+    expect(tx).to.changeTokenBalance(USDC, [user, deployer], [-100, +100]);
+    expect(tx).to.changeTokenBalance(NFT, [user, deployer], [+1, -1]);
+    expect(tx)
+      .to.emit(marketplace, "BidAccepted")
+      .withArgs(0, user.address, deployer.address, 100);
+    expect((await marketplace.items(0)).onSale).to.eq(false);
+  });
+
+  it("Should revert if blocktimestamp is higher than deadline", async () => {
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
+
+    const mintTx = await marketplace.connect(deployer).mint();
+
+    const listTx = await marketplace.connect(deployer).listItem(0, 100);
+
+    const signBidMessage = await signBid(
+      marketplace.address,
+      user.address,
+      0,
+      100,
+      100,
+      user
+    );
+
+    await expect(
+      marketplace
+        .connect(deployer)
+        .acceptBid(
+          signBidMessage.buyer,
+          signBidMessage.tokenId,
+          signBidMessage.price,
+          signBidMessage.deadline,
+          signBidMessage.v,
+          signBidMessage.r,
+          signBidMessage.s
+        )
+    ).to.be.revertedWith("Time for this bid expired");
+  });
+
+  it("Should revert if buyer don't have enough balance to pay for bid", async () => {
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
+
+    const mintTx = await marketplace.connect(deployer).mint();
+
+    const listTx = await marketplace.connect(deployer).listItem(0, 100);
+
+    const signBidMessage = await signBid(
+      marketplace.address,
+      user.address,
+      0,
+      Number(ethers.utils.parseUnits("100", "6")),
+      Math.floor(Date.now() / 1000) + 1000,
+      user
+    );
+
+    await expect(
+      marketplace
+        .connect(deployer)
+        .acceptBid(
+          signBidMessage.buyer,
+          signBidMessage.tokenId,
+          signBidMessage.price,
+          signBidMessage.deadline,
+          signBidMessage.v,
+          signBidMessage.r,
+          signBidMessage.s
+        )
+    ).to.be.revertedWith(
+      "Bidder don't have enough balance to pay for this bid"
+    );
+  });
+
+  it("Should revert if signature is invalid", async () => {
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
+
+    const mintTx = await marketplace.connect(deployer).mint();
+
+    const signBidMessage = await signBid(
+      marketplace.address,
+      deployer.address,
+      0,
+      100,
+      Math.floor(Date.now() / 1000) + 1000,
+      user
+    );
+
+    await expect(
+      marketplace
+        .connect(deployer)
+        .acceptBid(
+          signBidMessage.buyer,
+          signBidMessage.tokenId,
+          signBidMessage.price,
+          signBidMessage.deadline,
+          signBidMessage.v,
+          signBidMessage.r,
+          signBidMessage.s
+        )
+    ).to.be.revertedWith("Invalid signature");
+  });
+
+  it("Should revert if non-owner of NFT is trying to accept bid", async () => {
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
+
+    const mintTx = await marketplace.connect(deployer).mint();
+
+    const listTx = await marketplace.connect(deployer).listItem(0, 100);
+
+    const signBidMessage = await signBid(
+      marketplace.address,
+      user.address,
+      0,
+      100,
+      Math.floor(Date.now() / 1000) + 1000,
+      user
+    );
+
+    await expect(
+      marketplace
+        .connect(user)
+        .acceptBid(
+          signBidMessage.buyer,
+          signBidMessage.tokenId,
+          signBidMessage.price,
+          signBidMessage.deadline,
+          signBidMessage.v,
+          signBidMessage.r,
+          signBidMessage.s
+        )
+    ).to.be.revertedWith("You aren't owner of the token");
   });
 });

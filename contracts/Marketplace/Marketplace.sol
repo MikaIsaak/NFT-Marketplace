@@ -124,7 +124,7 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         bytes32 r,
         bytes32 s
     ) external onlyNftOwner(msg.sender, tokenId) {
-        require(block.timestamp <= deadline, "You are late");
+        require(block.timestamp <= deadline, "Time for this bid expired");
         require(
             USDC.balanceOf(buyer) >= getTotalPrice(price),
             "Bidder don't have enough balance to pay for this bid"
