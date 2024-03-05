@@ -14,7 +14,6 @@ import "hardhat/console.sol";
 
 contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     using SafeERC20 for IERC20;
-    using ECDSA for bytes32;
 
     MarcChagall public nft;
     address private feeReceiver;
@@ -24,9 +23,9 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     mapping(address => uint256) private _nonces;
     mapping(bytes32 => bool) hashesOfTX;
 
-    bytes32 internal constant WHITELABEL_TYPE_HASH =
+    bytes32 internal constant BID_TYPE_HASH =
         keccak256(
-            "AcceptBid(address buyer,uint256 tokenId,uint256 price,uint256 deadline)"
+            "Bid(address buyer,uint256 tokenId,uint256 price,uint256 deadline)"
         );
 
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
@@ -116,74 +115,27 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         return ((_price * (100 + feePercent)) / 100);
     }
 
-    //EIP712 PART
-
-    // struct BidAccept {
-    //     address buyer;
-    //     uint256 tokenId;
-    //     uint256 price;
-    //     uint256 deadline;
-    //     bytes signature;
-    // }
-
-    // function recover(
-    //     BidAccept calldata bidInfo
-    // ) public view returns (address signer) {
-    //     bytes32 digest = _hashTypedDataV4(
-    //         keccak256(
-    //             abi.encode(
-    //                 keccak256(
-    //                     "BidAccept(address buyer,uint256 tokenId,uint256 price,uint256 deadline)"
-    //                 ),
-    //                 bidInfo.buyer,
-    //                 bidInfo.tokenId,
-    //                 bidInfo.price,
-    //                 bidInfo.deadline
-    //             )
-    //         )
-    //     );
-    //     signer = ECDSA.recover(digest, bidInfo.signature);
-    //     console.log(signer);
-    //     return signer;
-    // }
-
-    function verifySignature(
-        address buyer,
-        uint256 tokenId,
-        uint256 price,
-        uint256 deadline,
-        bytes calldata signature
-    ) internal view returns (bool) {
-        address signer = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    WHITELABEL_TYPE_HASH,
-                    buyer,
-                    tokenId,
-                    price,
-                    deadline
-                )
-            )
-        ).recover(signature);
-        return signer == buyer;
-    }
-
     function acceptBid(
         address buyer,
         uint256 tokenId,
         uint256 price,
         uint256 deadline,
-        bytes calldata signature
-    ) external {
-        require(deadline <= block.timestamp, "You are late");
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external onlyNftOwner(msg.sender, tokenId) {
+        require(block.timestamp <= deadline, "You are late");
         require(
             USDC.balanceOf(buyer) >= getTotalPrice(price),
-            "Not enough balance"
+            "Bidder don't have enough balance to pay for this bid"
         );
-        require(
-            verifySignature(buyer, tokenId, price, deadline, signature),
-            "Incorrect signature"
+
+        bytes32 hash = keccak256(
+            abi.encode(BID_TYPE_HASH, buyer, tokenId, price, deadline)
         );
+        bytes32 digest = _hashTypedDataV4(hash);
+        address signer = ECDSA.recover(digest, v, r, s);
+        require(signer == buyer, "Invalid signature");
 
         if (items[tokenId].onSale) {
             items[tokenId].onSale = false;
@@ -198,5 +150,9 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         nft.safeTransferFrom(msg.sender, buyer, tokenId);
 
         emit BidAccepted(tokenId, buyer, msg.sender, price);
+    }
+
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
+        return _domainSeparatorV4();
     }
 }

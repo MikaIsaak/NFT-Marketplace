@@ -10,37 +10,97 @@ import { Marketplace__factory } from "../typechain-types";
 import { Address } from "hardhat-deploy/dist/types";
 require("dotenv").config();
 
-async function createBidSig(
-  marketplace: string,
-  buyer: SignerWithAddress,
+// interface of our message
+//"Bid(address buyer,uint256 tokenId,uint256 price,uint256 deadline)");
+interface BidMessage {
+  buyer: string;
+  tokenId: number;
+  price: number;
+  deadline: number;
+}
+
+// element of signature that give us oppurtunity to recover our signer in smart-contract
+// we don't change this interface
+interface RSV {
+  r: string;
+  s: string;
+  v: number;
+}
+
+// Domain is interface which gives us possibility to write
+interface Domain {
+  name: string;
+  version: string;
+  chainId: number;
+  verifyingContract: string;
+}
+
+// split signature to receive elements of RSV
+function splitSignatureToRSV(signature: string): RSV {
+  const r = "0x" + signature.substring(2).substring(0, 64);
+  const s = "0x" + signature.substring(2).substring(64, 128);
+  const v = parseInt(signature.substring(2).substring(128, 130), 16);
+
+  return { r, s, v };
+}
+
+// Signing
+async function signBid(
+  token: string,
+  buyer: string,
   tokenId: number,
   price: number,
-  deadline: number
-): Promise<string> {
-  const { chainId } = await ethers.provider.getNetwork();
-
-  const domain = {
-    name: "Marketplace",
-    version: "1",
-    chainId,
-    verifyingContract: marketplace,
-  };
-  const types = {
-    AcceptBid: [
-      { name: "buyer", type: "address" },
-      { name: "tokenId", type: "uint256" },
-      { name: "price", type: "uint256" },
-      { name: "deadline", type: "uint256" },
-    ],
-  };
-  const message = {
-    buyer: buyer.address,
+  deadline: number,
+  signer: SignerWithAddress
+): Promise<BidMessage & RSV> {
+  // creating message using BidMessage interface
+  const message: BidMessage = {
+    buyer,
     tokenId,
     price,
     deadline,
   };
 
-  return await buyer._signTypedData(domain, types, message);
+  // adding our Domain information, which we gave in smart-contract!
+  const domain: Domain = {
+    name: "Marketplace",
+    version: "1",
+    chainId: 11155111,
+    verifyingContract: token,
+  };
+
+  //  build our signature in correct way for signing
+  const typedData = createTypedData(message, domain);
+
+  // signing
+  const rawSignature = await signer._signTypedData(
+    typedData.domain,
+    typedData.types,
+    typedData.message
+  );
+
+  // spliting signature to r s v elements
+  const sig = splitSignatureToRSV(rawSignature);
+
+  // return rsv and BidMessage struct elements
+  return { ...sig, ...message };
+}
+
+// function we call in signing function in order to show message in correct way
+function createTypedData(message: BidMessage, domain: Domain) {
+  return {
+    types: {
+      Bid: [
+        { name: "buyer", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "price", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    },
+    primaryType: "Bid",
+    domain,
+    message,
+  };
 }
 
 async function deploy() {
@@ -222,9 +282,8 @@ describe("List item", function () {
 
 describe("purchaseItem", async () => {
   it("Should purchase Item", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("1", 6);
     const allowance = ethers.utils.parseUnits("10", 6);
 
@@ -242,9 +301,8 @@ describe("purchaseItem", async () => {
   });
 
   it("Should revert if Item isn't on sale", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
 
     expect(marketplace.purchaseItem(1)).to.be.revertedWith(
       "Item isn't on sale"
@@ -252,9 +310,8 @@ describe("purchaseItem", async () => {
   });
 
   it("Should revert if buyer is message sender", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
 
     const mintTx = await marketplace.connect(deployer).mint();
 
@@ -266,9 +323,8 @@ describe("purchaseItem", async () => {
   });
 
   it("Should revert if buyer USDC balance isn't enough for buying NFT", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("100", 6);
 
     const mintTx = await marketplace.connect(deployer).mint();
@@ -308,9 +364,8 @@ describe("removeListing", function () {
   });
 
   it("Should revert if non-owner trying to delist item", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("1", 6);
 
     const mintTx = await marketplace.connect(deployer).mint();
@@ -323,9 +378,8 @@ describe("removeListing", function () {
   });
 
   it("Should revert if item isn't listed", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
     const price = ethers.utils.parseUnits("1", 6);
 
     const mintTx = await marketplace.connect(deployer).mint();
@@ -342,22 +396,30 @@ describe("removeListing", function () {
 
 describe("acceptBid", function () {
   it("Should accept bid and transfer money", async () => {
-    const { deployer, user, marketplace, NFT, USDC } = await loadFixture(
-      deploy
-    );
+    const { deployer, user, marketplace, NFT, USDC } =
+      await loadFixture(deploy);
 
     const mintTx = await marketplace.connect(deployer).mint();
 
-    const signature = await createBidSig(
+    const signBidMessage = await signBid(
       marketplace.address,
-      user,
+      user.address,
       0,
-      10,
-      1000
+      100,
+      1000000,
+      user
     );
 
-    const tx = await marketplace
+    await marketplace
       .connect(deployer)
-      .acceptBid(user.address, 0, 10, 100, signature);
+      .acceptBid(
+        signBidMessage.buyer,
+        signBidMessage.tokenId,
+        signBidMessage.price,
+        signBidMessage.deadline,
+        signBidMessage.v,
+        signBidMessage.r,
+        signBidMessage.s
+      );
   });
 });
