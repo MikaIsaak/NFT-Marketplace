@@ -17,6 +17,7 @@ interface BidMessage {
   tokenId: number;
   price: number;
   deadline: number;
+  nonce: number;
 }
 
 // element of signature that give us oppurtunity to recover our signer in smart-contract
@@ -51,6 +52,7 @@ async function signBid(
   tokenId: number,
   price: number,
   deadline: number,
+  nonce: number,
   signer: SignerWithAddress
 ): Promise<BidMessage & RSV> {
   // creating message using BidMessage interface
@@ -59,6 +61,7 @@ async function signBid(
     tokenId,
     price,
     deadline,
+    nonce,
   };
 
   // adding our Domain information, which we gave in smart-contract!
@@ -95,6 +98,7 @@ function createTypedData(message: BidMessage, domain: Domain) {
         { name: "tokenId", type: "uint256" },
         { name: "price", type: "uint256" },
         { name: "deadline", type: "uint256" },
+        { name: "nonce", type: "uint256" },
       ],
     },
     primaryType: "Bid",
@@ -409,6 +413,7 @@ describe("acceptBid", function () {
       0,
       100,
       Math.floor(Date.now() / 1000) + 1000,
+      0,
       user
     );
 
@@ -446,6 +451,7 @@ describe("acceptBid", function () {
       0,
       100,
       100,
+      0,
       user
     );
 
@@ -478,6 +484,7 @@ describe("acceptBid", function () {
       0,
       Number(ethers.utils.parseUnits("100", "6")),
       Math.floor(Date.now() / 1000) + 1000,
+      0,
       user
     );
 
@@ -510,6 +517,7 @@ describe("acceptBid", function () {
       0,
       100,
       Math.floor(Date.now() / 1000) + 1000,
+      0,
       user
     );
 
@@ -542,6 +550,7 @@ describe("acceptBid", function () {
       0,
       100,
       Math.floor(Date.now() / 1000) + 1000,
+      0,
       user
     );
 

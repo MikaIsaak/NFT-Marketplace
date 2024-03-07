@@ -9,25 +9,34 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IMarketplace} from "./IMarketplace.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {console} from "hardhat/console.sol";
 
-import "hardhat/console.sol";
-
+/// @title NFT Marketplace for buying and selling NFTs of Marc Chagall
+/// @author Mikael Isayan
+/// @notice Contract is made only for Marc Chagall NFTs
 contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     using SafeERC20 for IERC20;
 
+    /// @notice Address of NFT contract
     MarcChagall public nft;
     address private feeReceiver;
+    /// @notice Percent of fee to Marketplace
     uint8 public feePercent;
+    /// @notice Address of USDC contract
     IERC20 public USDC;
+    /// @notice Mapping of items
     mapping(uint256 => Item) public items;
     mapping(address => uint256) private _nonces;
-    mapping(bytes32 => bool) hashesOfTX;
+    mapping(bytes32 => bool) private hashesOfTX;
 
+    /// @dev Type hash for Bid signature
+    /// used in signature recovering and checking process
     bytes32 internal constant BID_TYPE_HASH =
         keccak256(
-            "Bid(address buyer,uint256 tokenId,uint256 price,uint256 deadline)"
+            "Bid(address buyer,uint256 tokenId,uint256 price,uint256 deadline,uint256 nonce)"
         );
 
+    ///@dev Used to prevent from making decisions by not exact NFT owner
     modifier onlyNftOwner(address _ownerAddress, uint256 _tokenId) {
         require(
             nft.ownerOf(_tokenId) == _ownerAddress,
@@ -41,6 +50,10 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         _disableInitializers();
     }
 
+    /// @notice Initializing function due to using Transparent proxy
+    /// @param _feePercent Fee is paying to marketplace
+    /// @param _nftAddress Address of Marc Chagall NFT
+    /// @param _USDC Token we used for buying/selling NFT and paying comission
     function initialize(
         uint8 _feePercent,
         address _nftAddress,
@@ -55,15 +68,20 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         feePercent = _feePercent;
         nft = MarcChagall(_nftAddress);
         USDC = IERC20(_USDC);
+        // used to initialize EIP712
         __EIP712_init("Marketplace", "1");
     }
 
     receive() external payable {}
 
+    ///@notice Minting NFT for message sender
     function mint() external {
         nft.safeMint(msg.sender);
     }
 
+    /// @notice Listing the NFT, which should be already minted
+    /// @param _tokenId ID of minted NFT
+    /// @param _price Price without marketplace fee
     function listItem(
         uint256 _tokenId,
         uint256 _price
@@ -80,6 +98,8 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         emit Offered(_tokenId, _price, msg.sender);
     }
 
+    /// @notice Buying NFT with exactly number
+    /// @param _tokenId Token ID of buying NFT
     function purchaseItem(uint256 _tokenId) external {
         Item storage item = items[_tokenId];
         require(item.onSale, "Item isn't on sale");
@@ -91,6 +111,7 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
             "Insufficient funds for buying NFT"
         );
 
+        // Used to prevent re-entrancy pattern
         item.onSale = false;
 
         USDC.safeTransferFrom(msg.sender, item.seller, item.price);
@@ -102,6 +123,8 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         emit Bought(_tokenId, item.price, msg.sender);
     }
 
+    /// @notice Removing listing of exact NFT
+    /// @param _itemId Token ID of NFT we want to delist
     function removeListing(uint256 _itemId) external {
         require(items[_itemId].seller == msg.sender, "You aren't the seller");
         require(items[_itemId].onSale, "This item isn't listed");
@@ -109,12 +132,22 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         items[_itemId].onSale = false;
     }
 
+    /// @dev Using for calculating full price of NFT (including Marketplace fee)
+    /// @param _price Price of the item
     function getTotalPrice(
         uint256 _price
     ) public view returns (uint256 _totalPrice) {
         return ((_price * (100 + feePercent)) / 100);
     }
 
+    /// @notice Accepting bid by seller using off-chain signature by buyer
+    /// @param buyer Buyer of the NFT(signer)
+    /// @param tokenId ID of the NFT we want to buy/sell
+    /// @param price Price for NFT (without comission)
+    /// @param deadline Deadline of bid
+    /// @param v Element of signature
+    /// @param r Element of signature
+    /// @param s Element of signature
     function acceptBid(
         address buyer,
         uint256 tokenId,
@@ -130,12 +163,24 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
             "Bidder don't have enough balance to pay for this bid"
         );
 
+        //recovering signature inside our contract
         bytes32 hash = keccak256(
-            abi.encode(BID_TYPE_HASH, buyer, tokenId, price, deadline)
+            abi.encode(
+                BID_TYPE_HASH,
+                buyer,
+                tokenId,
+                price,
+                deadline,
+                _nonces[buyer]
+            )
         );
+        // making hash data типизированным
         bytes32 digest = _hashTypedDataV4(hash);
+        // recovering the signer of the transation
         address signer = ECDSA.recover(digest, v, r, s);
         require(signer == buyer, "Invalid signature");
+        ++_nonces[buyer];
+        hashesOfTX[digest] = true;
 
         if (items[tokenId].onSale) {
             items[tokenId].onSale = false;
@@ -152,6 +197,8 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         emit BidAccepted(tokenId, buyer, msg.sender, price);
     }
 
+    ///@dev Used to limit the use of signatures from other networks
+    ///@return _domainSeparatorV4 hashed information about this contract, chain, etc.
     function DOMAIN_SEPARATOR() external view returns (bytes32) {
         return _domainSeparatorV4();
     }
