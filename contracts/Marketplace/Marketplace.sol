@@ -2,13 +2,16 @@
 pragma solidity 0.8.20;
 
 import {MarcChagall} from "../ERC721/MarcChagall.sol";
+
+import {IMarketplace} from "./IMarketplace.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import {IMarketplace} from "./IMarketplace.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
 import {console} from "hardhat/console.sol";
 
 /// @title NFT Marketplace for buying and selling NFTs of Marc Chagall
@@ -193,13 +196,13 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     }
 
     ///@dev Returning current nonce and increments it
-    ///@param _user User we use for checking his current nonce in mappin
+    ///@param _user User we use for checking his current nonce in mapping
     function getNonce(address _user) internal returns (uint256 nonce) {
         nonce = _nonces[_user];
         _nonces[_user]++;
     }
 
-    ///@dev Used to limit the use of signatures from other networks
+    ///@dev Used to limit use of signatures from other networks
     ///@return _domainSeparatorV4 hashed information about this contract, chain, etc.
     function DOMAIN_SEPARATOR() external view returns (bytes32) {
         return _domainSeparatorV4();
