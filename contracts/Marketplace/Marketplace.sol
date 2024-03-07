@@ -26,9 +26,8 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     IERC20 public USDC;
     /// @notice Mapping of items
     mapping(uint256 => Item) public items;
+    /// @dev Nonce should be incremented for the next signature, regardless of what inside
     mapping(address => uint256) private _nonces;
-    mapping(bytes32 => bool) private hashesOfTX;
-
     /// @dev Type hash for Bid signature
     /// used in signature recovering and checking process
     bytes32 internal constant BID_TYPE_HASH =
@@ -171,16 +170,12 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
                 tokenId,
                 price,
                 deadline,
-                _nonces[buyer]
+                getNonce(buyer)
             )
         );
-        // making hash data типизированным
         bytes32 digest = _hashTypedDataV4(hash);
-        // recovering the signer of the transation
         address signer = ECDSA.recover(digest, v, r, s);
         require(signer == buyer, "Invalid signature");
-        ++_nonces[buyer];
-        hashesOfTX[digest] = true;
 
         if (items[tokenId].onSale) {
             items[tokenId].onSale = false;
@@ -195,6 +190,13 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         nft.safeTransferFrom(msg.sender, buyer, tokenId);
 
         emit BidAccepted(tokenId, buyer, msg.sender, price);
+    }
+
+    ///@dev Returning current nonce and increments it
+    ///@param _user User we use for checking his current nonce in mappin
+    function getNonce(address _user) internal returns (uint256 nonce) {
+        nonce = _nonces[_user];
+        _nonces[_user]++;
     }
 
     ///@dev Used to limit the use of signatures from other networks
