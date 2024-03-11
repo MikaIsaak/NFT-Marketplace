@@ -1,28 +1,55 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 interface IMarketplace {
     function mint() external;
 
-    function purchaseItem(uint256 _tokenId, uint256 _amount) external;
+    function purchaseItem(uint256 _tokenId) external;
 
     function listItem(uint256 _tokenId, uint256 _price) external;
 
     function removeListing(uint256 _tokenId) external;
 
-    function getTotalPrice(uint256 _itemID) external view returns (uint);
+    function getTotalPrice(uint256 _itemID) external view returns (uint256);
 
-    function _transferNFT(address _from, address _to, uint256 _tokenId) external;
+    event Offered(
+        uint256 indexed _tokenId,
+        uint256 indexed _price,
+        address indexed _seller
+    );
 
-    function _transferFunds(
-        IERC20 token,
-        address _buyer,
-        address _fee,
+    event Bought(
+        uint256 indexed _itemId,
+        uint256 indexed _price,
+        address indexed _buyer
+    );
+
+    event BidCreated(
+        uint256 indexed _tokenId,
+        address indexed _buyer,
+        uint256 indexed _price
+    );
+
+    event BidAccepted(
+        uint256 indexed _tokenId,
+        address indexed _buyer,
         address _seller,
-        uint256 _messageValue,
-        uint256 _totalPrice,
-        uint256 _itemPrice
-    ) external returns (bool);
+        uint256 indexed _price
+    );
+
+    event BidCanceled(
+        uint256 indexed _tokenId,
+        address indexed _buyer,
+        uint256 indexed _price
+    );
+    struct Item {
+        uint256 price;
+        address payable seller;
+        bool onSale;
+    }
+
+    struct Bid {
+        address buyer;
+        uint256 price;
+    }
 }
