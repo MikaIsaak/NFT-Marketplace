@@ -5,6 +5,8 @@ import "hardhat-prettier";
 import "hardhat-deploy";
 import "@typechain/hardhat";
 import "@nomicfoundation/hardhat-network-helpers";
+import "@nomicfoundation/hardhat-foundry";
+
 
 import { HardhatUserConfig } from "hardhat/config";
 require("dotenv").config();
