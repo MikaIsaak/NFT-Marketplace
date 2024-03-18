@@ -126,12 +126,14 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
     }
 
     /// @notice Removing listing of exact NFT
-    /// @param _itemId Token ID of NFT we want to delist
-    function removeListing(uint256 _itemId) external {
-        require(items[_itemId].seller == msg.sender, "You aren't the seller");
-        require(items[_itemId].onSale, "This item isn't listed");
+    /// @param _tokenId Token ID of NFT we want to delist
+    function removeListing(
+        uint256 _tokenId
+    ) external onlyNftOwner(msg.sender, _tokenId) {
+        require(items[_tokenId].onSale, "This item isn't listed");
+        require(items[_tokenId].seller == msg.sender, "You aren't the seller");
 
-        items[_itemId].onSale = false;
+        items[_tokenId].onSale = false;
     }
 
     /// @dev Using for calculating full price of NFT (including Marketplace fee)
