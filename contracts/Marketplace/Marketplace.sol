@@ -131,7 +131,6 @@ contract Marketplace is Initializable, IMarketplace, EIP712Upgradeable {
         uint256 _tokenId
     ) external onlyNftOwner(msg.sender, _tokenId) {
         require(items[_tokenId].onSale, "This item isn't listed");
-        require(items[_tokenId].seller == msg.sender, "You aren't the seller");
 
         items[_tokenId].onSale = false;
     }

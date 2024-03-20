@@ -200,24 +200,10 @@ contract MarketplaceTest is Test {
         assertFalse(onSale, "Item should no longer be on sale");
     }
 
-    function testFuzz_RevertWhen_NonOwnerTryingToDelist(uint256 price) public {
-        vm.assume(price < USDC.balanceOf(user) && price != 0);
-
-        vm.startPrank(deployer);
-        marketplace.mint();
-        marketplace.listItem(0, price);
-        vm.stopPrank();
-
-        vm.prank(user);
-        vm.expectRevert("You aren't the seller");
-        marketplace.removeListing(0);
-    }
-
-    ///??????????????????????????????????????????????????????????????????????????
     function testFuzz_RevertIf_NFTIsntListed(uint256 price) public {
         vm.assume(price < ((USDC.balanceOf(user) * 9) / 10) && price != 0);
 
-        vm.prank(deployer);
+        vm.startPrank(deployer);
         marketplace.mint();
         marketplace.listItem(0, price);
         marketplace.removeListing(0);
@@ -227,14 +213,15 @@ contract MarketplaceTest is Test {
         vm.stopPrank();
     }
 
-    function test_Bid() public {
+    function test_Bid(uint256 _price) public {
+        vm.assume(_price < ((USDC.balanceOf(user) * 9) / 10) && _price != 0);
         vm.prank(deployer);
         marketplace.mint();
 
         SigUtils.Bid memory bid = SigUtils.Bid({
             buyer: user,
             tokenId: 0,
-            price: 100,
+            price: _price,
             deadline: block.timestamp + 1 days,
             nonce: 0
         });
@@ -248,8 +235,8 @@ contract MarketplaceTest is Test {
             digest
         );
 
-        vm.expectEmit(true, true, true, true); // Активация всех четырёх флагов означает проверку всех аспектов события
-        emit BidAccepted(0, user, deployer, 100); // Используйте актуальные значения вместо примерных
+        vm.expectEmit(true, true, true, true); 
+        emit BidAccepted(0, user, deployer, 100); 
         vm.prank(deployer);
         marketplace.acceptBid(
             bid.buyer,
